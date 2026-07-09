@@ -37,12 +37,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _state.update { it.copy(selectedStation = station) }
     }
 
-    /** Selects the station nearest to a tapped map coordinate, within [maxMeters]. */
-    fun selectNearestStation(lon: Double, lat: Double, maxMeters: Double = 120.0) {
-        val nearest = _state.value.stations.minByOrNull { haversineMeters(lat, lon, it.lat, it.lon) }
-        if (nearest != null && haversineMeters(lat, lon, nearest.lat, nearest.lon) <= maxMeters) {
-            selectStation(nearest)
-        }
+    /** Selects the station whose marker coordinate matches a rendered-feature hit ([lon]/[lat]). */
+    fun selectStationByCoord(lon: Double, lat: Double) {
+        val match = _state.value.stations.minByOrNull { haversineMeters(lat, lon, it.lat, it.lon) }
+        selectStation(match)
     }
 
     fun toggleHidingZone() {

@@ -1,5 +1,6 @@
 package com.hiddenwindy.map
 
+import android.graphics.RectF
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -26,6 +27,12 @@ import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.geojson.Point
 import kotlin.coroutines.resume
+
+/**
+ * Extra touch slop (in dp) added around a station marker's rendered radius so a tap only has to land
+ * near the visible dot to select it. Hit-testing is done in screen space, so it works at any zoom.
+ */
+private const val STATION_TOUCH_PADDING_DP = 6f
 
 /**
  * Hosts the MapLibre [MapView] inside Compose. Loads the MapTiler style, wires the transit layers,
@@ -63,7 +70,22 @@ fun MapViewContainer(
         ready = true
 
         map.addOnMapClickListener { latLng ->
-            viewModel.selectNearestStation(latLng.longitude, latLng.latitude)
+            val tap = map.projection.toScreenLocation(latLng)
+            val padding = mapView.resources.displayMetrics.density * STATION_TOUCH_PADDING_DP
+            val rect = RectF(tap.x - padding, tap.y - padding, tap.x + padding, tap.y + padding)
+            val hit = map.queryRenderedFeatures(rect, MapConstants.STATIONS_LAYER)
+                .mapNotNull { it.geometry() as? Point }
+                .minByOrNull { p ->
+                    val s = map.projection.toScreenLocation(LatLng(p.latitude(), p.longitude()))
+                    val dx = s.x - tap.x
+                    val dy = s.y - tap.y
+                    dx * dx + dy * dy
+                }
+            if (hit != null) {
+                viewModel.selectStationByCoord(hit.longitude(), hit.latitude())
+            } else {
+                viewModel.selectStation(null)
+            }
             true
         }
         map.addOnMapLongClickListener { latLng ->

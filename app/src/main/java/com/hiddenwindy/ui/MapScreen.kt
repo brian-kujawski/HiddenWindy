@@ -105,7 +105,7 @@ private fun ControlPanel(
                     enabled = state.selectedStation != null,
                     modifier = Modifier.width(180.dp),
                 ) {
-                    Text(if (state.hidingZoneVisible) "Hide zone" else "Show hiding zone")
+                    Text(if (state.hidingZoneVisible) "Hide Zone" else "Show Zone")
                 }
                 OutlinedButton(onClick = onUseMyLocation) {
                     Text("My location")
