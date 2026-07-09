@@ -1,0 +1,61 @@
+package com.hiddenwindy.game
+
+import com.hiddenwindy.data.Station
+import org.maplibre.geojson.Point
+import org.maplibre.geojson.Polygon
+
+/** Cardinal direction used by [DirectionalEliminator] to describe the eliminated side. */
+enum class Direction(val label: String) {
+    NORTH("North"),
+    SOUTH("South"),
+    EAST("East"),
+    WEST("West"),
+}
+
+/**
+ * The information a rule needs to decide which part of the map is "out of play".
+ *
+ * Additional context (e.g. the current transit line, seeker positions) can be added here as new
+ * rule types are introduced without changing existing eliminators.
+ */
+data class GameContext(
+    val referencePoint: Point?,
+    val selectedStation: Station?,
+    val stations: List<Station>,
+    val bounds: CityBounds = ZoneGeometry.CHICAGO_BOUNDS,
+)
+
+/**
+ * A single question/answer that narrows the hiding zone. Each eliminator reports the polygons that
+ * are now *out of play*; the remaining unshaded area is still in play.
+ *
+ * This is the core extension point: new ways to whittle down the zone (radius-from-me, same/different
+ * line, N-stops-away, etc.) are added simply by implementing this interface — no changes to the
+ * view model or rendering code are required.
+ */
+interface Eliminator {
+    /** Stable identifier, unique within the active rule list. */
+    val id: String
+
+    /** Short human-readable description shown in the UI (e.g. "North of me"). */
+    val label: String
+
+    /** Regions that are eliminated given [context]. Empty when the rule currently shades nothing. */
+    fun outRegions(context: GameContext): List<Polygon>
+}
+
+/**
+ * Eliminates everything on one cardinal side of a reference point — the answer to
+ * "are you north or south of me?" and similar questions.
+ */
+data class DirectionalEliminator(
+    override val id: String,
+    val origin: Point,
+    val direction: Direction,
+) : Eliminator {
+
+    override val label: String = "${direction.label} of point"
+
+    override fun outRegions(context: GameContext): List<Polygon> =
+        listOfNotNull(ZoneGeometry.directionalOutPolygon(origin, direction, context.bounds))
+}
