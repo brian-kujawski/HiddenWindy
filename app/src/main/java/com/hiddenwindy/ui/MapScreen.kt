@@ -71,7 +71,6 @@ private fun InfoCard(state: GameState, modifier: Modifier = Modifier) {
             } else {
                 Text(station.name, fontWeight = FontWeight.Bold)
                 Text("Lines: ${station.lines.joinToString(", ").ifEmpty { "—" }}")
-                Text("ADA accessible: ${if (station.ada) "Yes" else "No"}")
             }
             val cuts = state.eliminators.size
             if (cuts > 0) {
