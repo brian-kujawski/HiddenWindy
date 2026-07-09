@@ -38,6 +38,23 @@ object ZoneGeometry {
         TurfTransformation.circle(center, radiusMiles, CIRCLE_STEPS, TurfConstants.UNIT_MILES)
 
     /**
+     * Builds an inverted hiding-zone mask: a [bounds]-sized rectangle with a circular hole punched
+     * out around each of [centers]. Rendered as a fill this shades everything OUTSIDE the circles
+     * while leaving the circles themselves clear. Returns null when there are no clear circles.
+     */
+    fun hidingZoneMask(
+        centers: List<Point>,
+        radiusMiles: Double = HIDING_ZONE_RADIUS_MILES,
+        bounds: CityBounds = CHICAGO_BOUNDS,
+    ): Polygon? {
+        if (centers.isEmpty()) return null
+        val outer = rectangle(bounds.west, bounds.south, bounds.east, bounds.north)
+            .map { Point.fromLngLat(it[0], it[1]) }
+        val holes = centers.map { hidingZoneCircle(it, radiusMiles).coordinates()[0] }
+        return Polygon.fromLngLats(listOf(outer) + holes)
+    }
+
+    /**
      * Returns the "out of play" rectangle on the [direction] side of [origin], clipped to [bounds].
      * Returns null when the origin already sits outside the bounds on that axis (nothing to shade).
      */

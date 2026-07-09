@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
@@ -29,7 +28,6 @@ import com.hiddenwindy.map.MapViewContainer
 @Composable
 fun MapScreen(
     viewModel: GameViewModel,
-    onUseMyLocation: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsState()
@@ -48,10 +46,10 @@ fun MapScreen(
         ControlPanel(
             state = state,
             onToggleHidingZone = viewModel::toggleHidingZone,
+            onLockZone = viewModel::lockHidingZone,
             onEliminate = viewModel::addDirectionalEliminator,
             onUndo = viewModel::undoLastEliminator,
             onReset = viewModel::resetEliminators,
-            onUseMyLocation = onUseMyLocation,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
@@ -84,10 +82,10 @@ private fun InfoCard(state: GameState, modifier: Modifier = Modifier) {
 private fun ControlPanel(
     state: GameState,
     onToggleHidingZone: () -> Unit,
+    onLockZone: () -> Unit,
     onEliminate: (Direction) -> Unit,
     onUndo: () -> Unit,
     onReset: () -> Unit,
-    onUseMyLocation: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val hasOrigin = state.activeOrigin != null
@@ -103,12 +101,16 @@ private fun ControlPanel(
                 Button(
                     onClick = onToggleHidingZone,
                     enabled = state.selectedStation != null,
-                    modifier = Modifier.width(180.dp),
+                    modifier = Modifier.weight(1f),
                 ) {
                     Text(if (state.hidingZoneVisible) "Hide Zone" else "Show Zone")
                 }
-                OutlinedButton(onClick = onUseMyLocation) {
-                    Text("My location")
+                FilledTonalButton(
+                    onClick = onLockZone,
+                    enabled = state.selectedStation != null && state.hidingZoneVisible,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Lock It In")
                 }
             }
 

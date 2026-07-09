@@ -33,6 +33,7 @@ class MapController {
         style.addSource(GeoJsonSource(MapConstants.STATIONS_SOURCE, stationsGeoJson))
         style.addSource(GeoJsonSource(MapConstants.ELIMINATOR_SOURCE, empty))
         style.addSource(GeoJsonSource(MapConstants.HIDING_ZONE_SOURCE, empty))
+        style.addSource(GeoJsonSource(MapConstants.HIDING_ZONE_OUTLINE_SOURCE, empty))
         style.addSource(GeoJsonSource(MapConstants.SELECTED_SOURCE, empty))
         style.addSource(GeoJsonSource(MapConstants.REFERENCE_SOURCE, empty))
 
@@ -62,7 +63,7 @@ class MapController {
             )
         )
         style.addLayer(
-            LineLayer(MapConstants.HIDING_ZONE_LINE_LAYER, MapConstants.HIDING_ZONE_SOURCE).withProperties(
+            LineLayer(MapConstants.HIDING_ZONE_LINE_LAYER, MapConstants.HIDING_ZONE_OUTLINE_SOURCE).withProperties(
                 PropertyFactory.lineColor("#1565C0"),
                 PropertyFactory.lineWidth(2.0f),
             )
@@ -93,13 +94,16 @@ class MapController {
     fun render(state: GameState) {
         val style = style ?: return
 
-        val hidingZone = state.hidingZone
+        val mask = state.hidingZoneMask
         source(style, MapConstants.HIDING_ZONE_SOURCE)?.setGeoJson(
-            if (hidingZone != null) {
-                FeatureCollection.fromFeature(Feature.fromGeometry(hidingZone))
+            if (mask != null) {
+                FeatureCollection.fromFeature(Feature.fromGeometry(mask))
             } else {
                 empty
             }
+        )
+        source(style, MapConstants.HIDING_ZONE_OUTLINE_SOURCE)?.setGeoJson(
+            FeatureCollection.fromFeatures(state.hidingZoneCircles.map { Feature.fromGeometry(it) })
         )
 
         val outFeatures = state.outRegions().map { Feature.fromGeometry(it) }

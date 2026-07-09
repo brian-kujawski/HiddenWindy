@@ -11,12 +11,26 @@ data class GameState(
     val hidingZoneVisible: Boolean = false,
     val referencePoint: Point? = null,
     val eliminators: List<Eliminator> = emptyList(),
+    val lockedZones: List<Point> = emptyList(),
 ) {
-    /** The active hiding zone circle, or null when hidden / no station selected. */
-    val hidingZone: Polygon?
-        get() = selectedStation
-            ?.takeIf { hidingZoneVisible }
-            ?.let { ZoneGeometry.hidingZoneCircle(it.point()) }
+    /** Centers of every clear (in-play) circle: the locked zones plus the active station's zone. */
+    val clearZoneCenters: List<Point>
+        get() {
+            val active = selectedStation?.takeIf { hidingZoneVisible }?.point()
+            return if (active != null && lockedZones.none { it.samePlaceAs(active) }) {
+                lockedZones + active
+            } else {
+                lockedZones
+            }
+        }
+
+    /** Inverted mask that shades everything OUTSIDE the clear circles, or null when there are none. */
+    val hidingZoneMask: Polygon?
+        get() = ZoneGeometry.hidingZoneMask(clearZoneCenters)
+
+    /** Outline circles drawn around each clear zone. */
+    val hidingZoneCircles: List<Polygon>
+        get() = clearZoneCenters.map { ZoneGeometry.hidingZoneCircle(it) }
 
     /** Origin used for new directional cuts: the reference point, else the selected station. */
     val activeOrigin: Point?
@@ -34,3 +48,7 @@ data class GameState(
         return eliminators.flatMap { it.outRegions(context) }
     }
 }
+
+/** True when two points refer to the same coordinate (used to de-duplicate locked zones). */
+private fun Point.samePlaceAs(other: Point): Boolean =
+    latitude() == other.latitude() && longitude() == other.longitude()

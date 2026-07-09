@@ -24,6 +24,7 @@ object MapConstants {
     const val HIDING_ZONE_SOURCE = "hiding-zone-source"
     const val HIDING_ZONE_FILL_LAYER = "hiding-zone-fill-layer"
     const val HIDING_ZONE_LINE_LAYER = "hiding-zone-line-layer"
+    const val HIDING_ZONE_OUTLINE_SOURCE = "hiding-zone-outline-source"
 
     const val ELIMINATOR_SOURCE = "eliminator-source"
     const val ELIMINATOR_FILL_LAYER = "eliminator-fill-layer"

@@ -47,6 +47,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _state.update { it.copy(hidingZoneVisible = !it.hidingZoneVisible) }
     }
 
+    /** Locks the selected station's hiding zone so its clear circle persists after deselection. */
+    fun lockHidingZone() {
+        val center = _state.value.selectedStation?.point() ?: return
+        _state.update {
+            val alreadyLocked = it.lockedZones.any { p ->
+                p.latitude() == center.latitude() && p.longitude() == center.longitude()
+            }
+            if (alreadyLocked) it else it.copy(lockedZones = it.lockedZones + center)
+        }
+    }
+
     fun setReferencePoint(point: Point?) {
         _state.update { it.copy(referencePoint = point) }
     }
