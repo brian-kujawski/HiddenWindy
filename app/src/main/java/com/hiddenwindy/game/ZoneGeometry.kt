@@ -20,7 +20,7 @@ data class CityBounds(
 object ZoneGeometry {
 
     /** Default hiding zone radius, per the game rules. */
-    const val HIDING_ZONE_RADIUS_MILES = 0.5
+    const val HIDING_ZONE_RADIUS_MILES = 0.25
 
     /**
      * Generous bounds covering the Chicago CTA 'L' + Metra network. Directional cuts are clipped to
