@@ -70,6 +70,7 @@ data class GameState(
     val lockedZone: Point? = null,
     val myLocation: Point? = null,
     val debugLocation: Point? = null,
+    val spoofLocationActive: Boolean = false,
     val radarPending: RadarPending? = null,
     val radarConfirmed: RadarConfirmed? = null,
     val radarResults: List<RadarResult> = emptyList(),

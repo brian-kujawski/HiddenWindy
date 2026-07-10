@@ -96,6 +96,8 @@ fun MapScreen(
                 },
                 isDebugLocationActive = state.debugLocation != null,
                 onToggleDebugLocation = viewModel::toggleBeanLocation,
+                isSpoofLocationActive = state.spoofLocationActive,
+                onToggleSpoofLocation = viewModel::toggleSpoofLocation,
                 onOpenQuestionsMenu = {
                     questionsStartOnRadar = false
                     showQuestionsModal = true
@@ -261,6 +263,8 @@ private fun HamburgerMenu(
     onDebugUnlocked: () -> Unit,
     isDebugLocationActive: Boolean,
     onToggleDebugLocation: () -> Unit,
+    isSpoofLocationActive: Boolean,
+    onToggleSpoofLocation: () -> Unit,
     onOpenQuestionsMenu: () -> Unit,
     onOpenHistory: () -> Unit,
     modifier: Modifier = Modifier,
@@ -275,6 +279,8 @@ private fun HamburgerMenu(
         DebugModal(
             isDebugLocationActive = isDebugLocationActive,
             onToggleDebugLocation = onToggleDebugLocation,
+            isSpoofLocationActive = isSpoofLocationActive,
+            onToggleSpoofLocation = onToggleSpoofLocation,
             onDismiss = { showDebugModal = false },
         )
     }

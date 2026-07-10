@@ -164,6 +164,22 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Toggles spoof-location mode. Turning it off clears the spoofed location. */
+    fun toggleSpoofLocation() {
+        _state.update { state ->
+            if (state.spoofLocationActive) {
+                state.copy(spoofLocationActive = false, debugLocation = null)
+            } else {
+                state.copy(spoofLocationActive = true)
+            }
+        }
+    }
+
+    /** Sets the spoofed location from a long-press when spoof mode is active. */
+    fun setSpoofLocation(point: Point) {
+        _state.update { it.copy(debugLocation = point) }
+    }
+
     /** Arms a Radar preview with the given radius. */
     fun setRadarPending(label: String, radiusMiles: Double) {
         _state.update { it.copy(radarPending = RadarPending(label, radiusMiles)) }

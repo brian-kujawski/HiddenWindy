@@ -25,6 +25,8 @@ import androidx.compose.ui.window.DialogProperties
 fun DebugModal(
     isDebugLocationActive: Boolean,
     onToggleDebugLocation: () -> Unit,
+    isSpoofLocationActive: Boolean,
+    onToggleSpoofLocation: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     Dialog(
@@ -56,7 +58,17 @@ fun DebugModal(
                 Spacer(Modifier.height(16.dp))
 
                 Button(
+                    onClick = { onToggleSpoofLocation(); if (isSpoofLocationActive) onDismiss() },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (isSpoofLocationActive) "No Spoof Location" else "Spoof Location")
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                Button(
                     onClick = { onToggleDebugLocation(); onDismiss() },
+                    enabled = !isSpoofLocationActive,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(if (isDebugLocationActive) "No More Bean" else "Make Me Bean")

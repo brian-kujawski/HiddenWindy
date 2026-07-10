@@ -88,7 +88,12 @@ fun MapViewContainer(
             true
         }
         map.addOnMapLongClickListener { latLng ->
-            viewModel.setReferencePoint(Point.fromLngLat(latLng.longitude, latLng.latitude))
+            val point = Point.fromLngLat(latLng.longitude, latLng.latitude)
+            if (viewModel.state.value.spoofLocationActive) {
+                viewModel.setSpoofLocation(point)
+            } else {
+                viewModel.setReferencePoint(point)
+            }
             true
         }
     }
