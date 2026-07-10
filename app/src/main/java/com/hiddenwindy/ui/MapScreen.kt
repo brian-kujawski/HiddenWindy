@@ -7,10 +7,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -46,6 +53,15 @@ fun MapScreen(
                 .padding(12.dp),
         )
 
+        if (state.selectedStation == null) {
+            HamburgerMenu(
+                onNewGame = viewModel::resetGame,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(4.dp),
+            )
+        }
+
         ControlPanel(
             state = state,
             onToggleHidingZone = viewModel::toggleHidingZone,
@@ -56,6 +72,59 @@ fun MapScreen(
                 .fillMaxWidth()
                 .padding(12.dp),
         )
+    }
+}
+
+@Composable
+private fun HamburgerMenu(
+    onNewGame: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    var showNewGameDialog by remember { mutableStateOf(false) }
+
+    if (showNewGameDialog) {
+        AlertDialog(
+            onDismissRequest = { showNewGameDialog = false },
+            title = { Text("Start a New Game?") },
+            text = { Text("This will clear all overlays and reset the current game.") },
+            confirmButton = {
+                TextButton(onClick = { onNewGame(); showNewGameDialog = false }) {
+                    Text("New Game")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showNewGameDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
+    Box(modifier = modifier) {
+        IconButton(
+            onClick = { menuExpanded = true },
+            modifier = Modifier.size(96.dp),
+        ) {
+            Icon(Icons.Default.Menu, contentDescription = "Menu", modifier = Modifier.size(48.dp))
+        }
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text("Questions") },
+                onClick = { menuExpanded = false },
+            )
+            DropdownMenuItem(
+                text = { Text("Rules") },
+                onClick = { menuExpanded = false },
+            )
+            DropdownMenuItem(
+                text = { Text("New Game") },
+                onClick = { menuExpanded = false; showNewGameDialog = true },
+            )
+        }
     }
 }
 

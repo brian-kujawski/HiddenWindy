@@ -84,6 +84,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _state.update { it.copy(eliminators = emptyList()) }
     }
 
+    /** Clears all game state (overlays, selections, locks) while keeping the station list. */
+    fun resetGame() {
+        _state.update { GameState(stations = it.stations) }
+    }
+
     private fun haversineMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         val r = 6_371_000.0
         val dLat = Math.toRadians(lat2 - lat1)
