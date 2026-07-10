@@ -1,8 +1,14 @@
 package com.hiddenwindy.game
 
 import android.app.Application
+import android.os.Looper
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.hiddenwindy.data.Station
 import com.hiddenwindy.data.TransitRepository
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +24,14 @@ import org.maplibre.geojson.Point
 class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = TransitRepository(application)
+    private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(application)
+
+    private val locationCallback = object : LocationCallback() {
+        override fun onLocationResult(result: LocationResult) {
+            val loc = result.lastLocation ?: return
+            _state.update { it.copy(myLocation = Point.fromLngLat(loc.longitude, loc.latitude)) }
+        }
+    }
 
     private val _state = MutableStateFlow(GameState())
     val state: StateFlow<GameState> = _state.asStateFlow()
@@ -86,7 +100,28 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Clears all game state (overlays, selections, locks) while keeping the station list. */
     fun resetGame() {
-        _state.update { GameState(stations = it.stations) }
+        _state.update { GameState(stations = it.stations, myLocation = it.myLocation) }
+    }
+
+    /**
+     * Starts receiving device location updates. Call this once the
+     * ACCESS_FINE_LOCATION permission has been granted.
+     */
+    @SuppressWarnings("MissingPermission")
+    fun onLocationPermissionGranted() {
+        val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5_000L)
+            .setMinUpdateIntervalMillis(2_000L)
+            .build()
+        try {
+            fusedLocationClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
+        } catch (_: SecurityException) {
+            // Permission was revoked between check and call — safe to ignore
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        fusedLocationClient.removeLocationUpdates(locationCallback)
     }
 
     private fun haversineMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {

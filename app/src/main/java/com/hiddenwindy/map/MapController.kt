@@ -36,6 +36,7 @@ class MapController {
         style.addSource(GeoJsonSource(MapConstants.HIDING_ZONE_OUTLINE_SOURCE, empty))
         style.addSource(GeoJsonSource(MapConstants.SELECTED_SOURCE, empty))
         style.addSource(GeoJsonSource(MapConstants.REFERENCE_SOURCE, empty))
+        style.addSource(GeoJsonSource(MapConstants.MY_LOCATION_SOURCE, empty))
 
         // Transit lines (data-driven colour from the "color" property).
         style.addLayer(
@@ -88,6 +89,16 @@ class MapController {
                 PropertyFactory.circleStrokeWidth(2.0f),
             )
         )
+
+        // My location — rendered on top of all other layers.
+        style.addLayer(
+            CircleLayer(MapConstants.MY_LOCATION_LAYER, MapConstants.MY_LOCATION_SOURCE).withProperties(
+                PropertyFactory.circleRadius(9.0f),
+                PropertyFactory.circleColor("#1A73E8"),
+                PropertyFactory.circleStrokeColor("#FFFFFF"),
+                PropertyFactory.circleStrokeWidth(2.5f),
+            )
+        )
     }
 
     /** Pushes the current [state] into the overlay sources. No-op before [setup]. */
@@ -117,6 +128,10 @@ class MapController {
 
         source(style, MapConstants.REFERENCE_SOURCE)?.setGeoJson(
             state.referencePoint?.let { FeatureCollection.fromFeature(Feature.fromGeometry(it)) } ?: empty
+        )
+
+        source(style, MapConstants.MY_LOCATION_SOURCE)?.setGeoJson(
+            state.myLocation?.let { FeatureCollection.fromFeature(Feature.fromGeometry(it)) } ?: empty
         )
     }
 

@@ -29,6 +29,9 @@ object MapConstants {
     const val ELIMINATOR_SOURCE = "eliminator-source"
     const val ELIMINATOR_FILL_LAYER = "eliminator-fill-layer"
 
+    const val MY_LOCATION_SOURCE = "my-location-source"
+    const val MY_LOCATION_LAYER = "my-location-layer"
+
     /** Initial map camera — downtown Chicago (41°53'N 87°38'W). */
     const val INITIAL_LAT = 41.8833
     const val INITIAL_LON = -87.6333

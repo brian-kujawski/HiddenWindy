@@ -12,6 +12,7 @@ data class GameState(
     val referencePoint: Point? = null,
     val eliminators: List<Eliminator> = emptyList(),
     val lockedZone: Point? = null,
+    val myLocation: Point? = null,
 ) {
     /** Centers of every clear (in-play) circle: the locked zone plus the active station's zone. */
     val clearZoneCenters: List<Point>

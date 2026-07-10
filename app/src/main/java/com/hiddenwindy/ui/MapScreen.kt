@@ -21,6 +21,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,8 +29,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import com.hiddenwindy.game.GameState
 import com.hiddenwindy.game.GameViewModel
 import com.hiddenwindy.map.MapViewContainer
@@ -41,6 +48,22 @@ fun MapScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) viewModel.onLocationPermissionGranted()
+    }
+
+    LaunchedEffect(Unit) {
+        val permission = Manifest.permission.ACCESS_FINE_LOCATION
+        if (ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED) {
+            viewModel.onLocationPermissionGranted()
+        } else {
+            locationPermissionLauncher.launch(permission)
+        }
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         MapViewContainer(viewModel = viewModel, modifier = Modifier.fillMaxSize())
