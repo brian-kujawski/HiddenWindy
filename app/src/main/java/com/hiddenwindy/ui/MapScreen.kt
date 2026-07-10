@@ -82,6 +82,11 @@ private fun HamburgerMenu(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var showNewGameDialog by remember { mutableStateOf(false) }
+    var showQuestionsModal by remember { mutableStateOf(false) }
+
+    if (showQuestionsModal) {
+        QuestionsModal(onDismiss = { showQuestionsModal = false })
+    }
 
     if (showNewGameDialog) {
         AlertDialog(
@@ -114,10 +119,14 @@ private fun HamburgerMenu(
         ) {
             DropdownMenuItem(
                 text = { Text("Questions") },
-                onClick = { menuExpanded = false },
+                onClick = { menuExpanded = false; showQuestionsModal = true },
             )
             DropdownMenuItem(
                 text = { Text("Rules") },
+                onClick = { menuExpanded = false },
+            )
+            DropdownMenuItem(
+                text = { Text("History") },
                 onClick = { menuExpanded = false },
             )
             DropdownMenuItem(
