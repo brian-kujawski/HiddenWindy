@@ -121,6 +121,9 @@ data class GameState(
         val context = gameContext()
         return eliminators.flatMap { it.outRegions(context) }
     }
+
+    /** Every "out of play" polygon from all sources (rules + radar results); may overlap. */
+    fun allOutRegions(): List<Polygon> = outRegions() + radarResultPolygons
 }
 
 /** True when two points refer to the same coordinate (used to de-duplicate locked zones). */

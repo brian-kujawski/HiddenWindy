@@ -142,7 +142,9 @@ class MapController {
             FeatureCollection.fromFeatures(state.hidingZoneCircles.map { Feature.fromGeometry(it) })
         )
 
-        val outFeatures = state.outRegions().map { Feature.fromGeometry(it) }
+        // Dissolve every exclusion (rules + radar) into non-overlapping geometry so a translucent
+        // fill renders as one flat shade instead of stacking darker where questions overlap.
+        val outFeatures = PolygonUnion.dissolve(state.allOutRegions()).map { Feature.fromGeometry(it) }
         source(style, MapConstants.ELIMINATOR_SOURCE)?.setGeoJson(
             FeatureCollection.fromFeatures(outFeatures)
         )
@@ -163,9 +165,9 @@ class MapController {
             state.radarPreviewCircle?.let { FeatureCollection.fromFeature(Feature.fromGeometry(it)) } ?: empty
         )
 
-        source(style, MapConstants.RADAR_RESULT_SOURCE)?.setGeoJson(
-            FeatureCollection.fromFeatures(state.radarResultPolygons.map { Feature.fromGeometry(it) })
-        )
+        // Radar results are folded into the unified exclusion shading above, so this legacy layer
+        // stays empty to avoid a second translucent pass that would stack opacity.
+        source(style, MapConstants.RADAR_RESULT_SOURCE)?.setGeoJson(empty)
     }
 
     fun release() {

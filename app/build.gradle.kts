@@ -86,6 +86,9 @@ dependencies {
     implementation("org.maplibre.gl:android-sdk:13.3.1")
     implementation("org.maplibre.gl:android-sdk-turf:6.0.1")
 
+    // Polygon union so overlapping exclusion zones render as a single flat shade.
+    implementation("org.locationtech.jts:jts-core:1.19.0")
+
     // Fused location for the "me" reference point.
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
