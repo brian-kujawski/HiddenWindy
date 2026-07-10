@@ -52,10 +52,9 @@ fun MapViewContainer(
 
     LaunchedEffect(mapView) {
         val map = mapView.awaitMap()
-        val bounds = ZoneGeometry.CHICAGO_BOUNDS
         map.cameraPosition = CameraPosition.Builder()
-            .target(LatLng(bounds.centerLat, bounds.centerLon))
-            .zoom(10.0)
+            .target(LatLng(MapConstants.INITIAL_LAT, MapConstants.INITIAL_LON))
+            .zoom(MapConstants.INITIAL_ZOOM)
             .build()
 
         val style = map.awaitStyle(MapConstants.STYLE_URL)
