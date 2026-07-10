@@ -53,9 +53,10 @@ private val TOP_LEVEL_SCREENS = listOf(
 )
 
 /** Sub-categories shown after tapping Matching. */
-private enum class MatchCategory(val displayName: String) {
+private enum class MatchCategory(val displayName: String, val direct: Boolean = false) {
     TRANSIT("Transit"),
-    MUNICIPALITY("Municipality"),
+    // Municipality has no submenu: tapping it goes straight to its single confirmation.
+    MUNICIPALITY("Municipality", direct = true),
     NATURAL("Natural"),
     POI("POI"),
     UTILITIES("Utilities"),
@@ -75,7 +76,30 @@ private enum class MatchQuestion(
     val displayName: String,
     val dataset: String? = null,
 ) {
-    TRAIN_LINE(MatchCategory.TRANSIT, "Train Line", dataset = "line_regions"),
+    // Transit
+    AIRPORT(MatchCategory.TRANSIT, "Airport"),
+    TRANSIT_LINE(MatchCategory.TRANSIT, "Transit Line", dataset = "line_regions"),
+    STATION_NAME_LENGTH(MatchCategory.TRANSIT, "Station's Name Length"),
+    STREET_OR_PATH(MatchCategory.TRANSIT, "Street or Path"),
+
+    // Municipality (direct category — no submenu)
+    MUNICIPALITY(MatchCategory.MUNICIPALITY, "Municipality"),
+
+    // Natural
+    PARK(MatchCategory.NATURAL, "Park"),
+
+    // POI
+    AMUSEMENT_PARK(MatchCategory.POI, "Amusement Park"),
+    ZOO(MatchCategory.POI, "Zoo"),
+    AQUARIUM(MatchCategory.POI, "Aquarium"),
+    GOLF_COURSE(MatchCategory.POI, "Golf Course"),
+    MUSEUM(MatchCategory.POI, "Museum"),
+    MOVIE_THEATER(MatchCategory.POI, "Movie Theater"),
+
+    // Utilities
+    HOSPITAL(MatchCategory.UTILITIES, "Hospital"),
+    LIBRARY(MatchCategory.UTILITIES, "Library"),
+    FOREIGN_CONSULATE(MatchCategory.UTILITIES, "Foreign Consulate"),
 }
 
 @Composable
@@ -112,7 +136,12 @@ fun QuestionsModal(
                     if (screen != QuestionsScreen.HOME) {
                         IconButton(onClick = {
                             when {
-                                screen == QuestionsScreen.MATCHING && matchQuestion != null -> matchQuestion = null
+                                screen == QuestionsScreen.MATCHING && matchQuestion != null -> {
+                                    // Direct categories skip the question list, so back exits the
+                                    // whole sub-category rather than landing on a one-item list.
+                                    if (matchCategory?.direct == true) matchCategory = null
+                                    matchQuestion = null
+                                }
                                 screen == QuestionsScreen.MATCHING && matchCategory != null -> matchCategory = null
                                 else -> {
                                     matchCategory = null
@@ -156,7 +185,13 @@ fun QuestionsModal(
                         question = matchQuestion,
                         nearestLineName = nearestLineName,
                         matchingEnabled = matchingEnabled,
-                        onSelectCategory = { matchCategory = it },
+                        onSelectCategory = { cat ->
+                            matchCategory = cat
+                            // Direct categories have no submenu: jump to their single question.
+                            if (cat.direct) {
+                                matchQuestion = MatchQuestion.entries.firstOrNull { it.category == cat }
+                            }
+                        },
                         onSelectQuestion = { matchQuestion = it },
                         onMatchingAnswer = onMatchingAnswer,
                     )
@@ -244,7 +279,7 @@ private fun MatchingNav(
         // Only questions whose dataset (and matching ViewModel wiring) exists are answerable today.
         // TODO: generalise MatchingSubmenu + the ViewModel to a "nearest feature" lookup keyed by
         // question.dataset so any built dataset becomes answerable without new UI.
-        question == MatchQuestion.TRAIN_LINE -> MatchingSubmenu(
+        question == MatchQuestion.TRANSIT_LINE -> MatchingSubmenu(
             nearestLineName = nearestLineName,
             enabled = matchingEnabled,
             onAnswer = onMatchingAnswer,
