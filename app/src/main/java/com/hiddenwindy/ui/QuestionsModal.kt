@@ -52,7 +52,7 @@ private val TOP_LEVEL_SCREENS = listOf(
     QuestionsScreen.PHOTOS,
 )
 
-/** Sub-categories shown after tapping Matching. Only [TRANSIT] has questions so far. */
+/** Sub-categories shown after tapping Matching. */
 private enum class MatchCategory(val displayName: String) {
     TRANSIT("Transit"),
     MUNICIPALITY("Municipality"),
@@ -61,9 +61,21 @@ private enum class MatchCategory(val displayName: String) {
     UTILITIES("Utilities"),
 }
 
-/** Individual Matching questions within a sub-category. */
-private enum class MatchQuestion(val displayName: String) {
-    TRAIN_LINE("Train Line"),
+/**
+ * A single Matching question.
+ *
+ * Each question is answered by shading the play area by "which named feature is nearest", so every
+ * question needs its own precomputed dataset. [dataset] names the `<dataset>_regions.geojson` asset
+ * produced by the offline tools (see tools/build_line_regions.py); a null dataset means the data has
+ * not been built yet, so the question renders a "coming soon" placeholder. Add a new question by
+ * adding an entry here — no other UI changes are needed to list it.
+ */
+private enum class MatchQuestion(
+    val category: MatchCategory,
+    val displayName: String,
+    val dataset: String? = null,
+) {
+    TRAIN_LINE(MatchCategory.TRANSIT, "Train Line", dataset = "line_regions"),
 }
 
 @Composable
@@ -229,16 +241,26 @@ private fun MatchingNav(
     onMatchingAnswer: (same: Boolean) -> Unit,
 ) {
     when {
+        // Only questions whose dataset (and matching ViewModel wiring) exists are answerable today.
+        // TODO: generalise MatchingSubmenu + the ViewModel to a "nearest feature" lookup keyed by
+        // question.dataset so any built dataset becomes answerable without new UI.
         question == MatchQuestion.TRAIN_LINE -> MatchingSubmenu(
             nearestLineName = nearestLineName,
             enabled = matchingEnabled,
             onAnswer = onMatchingAnswer,
         )
-        category == MatchCategory.TRANSIT -> ButtonColumn(
-            labels = MatchQuestion.entries.map { it.displayName },
-            onSelect = { index -> onSelectQuestion(MatchQuestion.entries[index]) },
-        )
-        category != null -> ComingSoon(category.displayName)
+        question != null -> ComingSoon(question.displayName)
+        category != null -> {
+            val questions = MatchQuestion.entries.filter { it.category == category }
+            if (questions.isEmpty()) {
+                ComingSoon(category.displayName)
+            } else {
+                ButtonColumn(
+                    labels = questions.map { it.displayName },
+                    onSelect = { index -> onSelectQuestion(questions[index]) },
+                )
+            }
+        }
         else -> ButtonColumn(
             labels = MatchCategory.entries.map { it.displayName },
             onSelect = { index -> onSelectCategory(MatchCategory.entries[index]) },
