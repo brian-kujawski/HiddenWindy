@@ -78,9 +78,17 @@ def find_folder(doc: ET.Element, name: str) -> ET.Element | None:
 
 def build_lines(doc: ET.Element, colors: dict[str, str]) -> list[dict]:
     features: list[dict] = []
-    folder = find_folder(doc, "Rail Lines")
-    if folder is None:
-        return features
+    for folder_name in ("Rail Lines", "Metra Lines"):
+        folder = find_folder(doc, folder_name)
+        if folder is None:
+            continue
+        _collect_line_features(folder, colors, features)
+    return features
+
+
+def _collect_line_features(
+    folder: ET.Element, colors: dict[str, str], features: list[dict]
+) -> None:
     for pm in folder.iter(tag("Placemark")):
         name_el = pm.find(tag("name"))
         name = (name_el.text or "").strip() if name_el is not None else ""
@@ -101,7 +109,6 @@ def build_lines(doc: ET.Element, colors: dict[str, str]) -> list[dict]:
                     "geometry": {"type": "LineString", "coordinates": coords},
                 }
             )
-    return features
 
 
 def parse_station_description(desc: str) -> dict:
@@ -114,7 +121,7 @@ def parse_station_description(desc: str) -> dict:
         if m:
             lines = [s.strip() for s in m.group(1).split(",") if s.strip()]
             continue
-        m = re.match(r"(?i)ada accessible:\s*(.+)", line)
+        m = re.match(r"(?i)(?:ada accessible|wheelchair boarding):\s*(.+)", line)
         if m:
             ada = m.group(1).strip().lower().startswith("y")
             continue
@@ -126,32 +133,33 @@ def parse_station_description(desc: str) -> dict:
 
 def build_stations(doc: ET.Element) -> list[dict]:
     features: list[dict] = []
-    folder = find_folder(doc, "Stations")
-    if folder is None:
-        return features
-    for pm in folder.iter(tag("Placemark")):
-        point = pm.find(tag("Point"))
-        if point is None:
+    for folder_name in ("Stations", "Metra Stations"):
+        folder = find_folder(doc, folder_name)
+        if folder is None:
             continue
-        coords_el = point.find(tag("coordinates"))
-        if coords_el is None or not coords_el.text:
-            continue
-        coords = parse_coords(coords_el.text)
-        if not coords:
-            continue
-        name_el = pm.find(tag("name"))
-        name = (name_el.text or "").strip() if name_el is not None else ""
-        desc_el = pm.find(tag("description"))
-        meta = parse_station_description(desc_el.text if desc_el is not None else "")
-        props = {"name": name}
-        props.update(meta)
-        features.append(
-            {
-                "type": "Feature",
-                "properties": props,
-                "geometry": {"type": "Point", "coordinates": coords[0]},
-            }
-        )
+        for pm in folder.iter(tag("Placemark")):
+            point = pm.find(tag("Point"))
+            if point is None:
+                continue
+            coords_el = point.find(tag("coordinates"))
+            if coords_el is None or not coords_el.text:
+                continue
+            coords = parse_coords(coords_el.text)
+            if not coords:
+                continue
+            name_el = pm.find(tag("name"))
+            name = (name_el.text or "").strip() if name_el is not None else ""
+            desc_el = pm.find(tag("description"))
+            meta = parse_station_description(desc_el.text if desc_el is not None else "")
+            props = {"name": name}
+            props.update(meta)
+            features.append(
+                {
+                    "type": "Feature",
+                    "properties": props,
+                    "geometry": {"type": "Point", "coordinates": coords[0]},
+                }
+            )
     return features
 
 
