@@ -73,6 +73,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
      * everything outside that line's region; false shades the region itself.
      */
     fun askMatching(same: Boolean) {
+        if (_state.value.askedQuestions.any { it.category == QuestionCategory.MATCHING }) return
         val name = nearestLineToMe() ?: return
         val regions = lineRegions[name] ?: return
         val eliminator = LineMatchEliminator(
@@ -81,7 +82,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             regions = regions,
             same = same,
         )
-        _state.update { it.copy(eliminators = it.eliminators + eliminator) }
+        val record = AskedQuestion(
+            category = QuestionCategory.MATCHING,
+            label = "Matching",
+            detail = "Train Line",
+        )
+        _state.update {
+            it.copy(
+                eliminators = it.eliminators + eliminator,
+                askedQuestions = it.askedQuestions + record,
+            )
+        }
     }
 
     fun selectStation(station: Station?) {
@@ -170,6 +181,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun confirmRadar() {
         val pending = _state.value.radarPending ?: return
         val center = _state.value.effectiveLocation ?: return
+        val record = AskedQuestion(
+            category = QuestionCategory.RADAR,
+            label = "Radar",
+            detail = "${pending.label} mi",
+        )
         _state.update { state ->
             state.copy(
                 radarPending = null,
@@ -178,6 +194,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     radiusMiles = pending.radiusMiles,
                     center = center,
                 ),
+                askedQuestions = state.askedQuestions + record,
             )
         }
     }

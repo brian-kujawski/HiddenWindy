@@ -60,6 +60,8 @@ fun QuestionsModal(
     nearestLineName: String? = null,
     matchingEnabled: Boolean = false,
     onMatchingAnswer: (same: Boolean) -> Unit = {},
+    askedCategories: Set<String> = emptySet(),
+    askedRadarLabels: Set<String> = emptySet(),
 ) {
     var screen by remember { mutableStateOf(if (startOnRadar) QuestionsScreen.RADAR else QuestionsScreen.HOME) }
 
@@ -100,11 +102,16 @@ fun QuestionsModal(
                 Spacer(Modifier.height(16.dp))
 
                 if (screen == QuestionsScreen.HOME) {
-                    QuestionsGrid(onSelect = { screen = it })
+                      QuestionsGrid(
+                          askedCategories = askedCategories,
+                          askedRadarLabels = askedRadarLabels,
+                          onSelect = { screen = it },
+                      )
                 } else {
                     QuestionsSubmenu(
                         screen = screen,
                         onRadarRadiusSelected = onRadarRadiusSelected,
+                        askedRadarLabels = askedRadarLabels,
                         nearestLineName = nearestLineName,
                         matchingEnabled = matchingEnabled,
                         onMatchingAnswer = onMatchingAnswer,
@@ -116,7 +123,11 @@ fun QuestionsModal(
 }
 
 @Composable
-private fun QuestionsGrid(onSelect: (QuestionsScreen) -> Unit) {
+private fun QuestionsGrid(
+    askedCategories: Set<String>,
+    askedRadarLabels: Set<String>,
+    onSelect: (QuestionsScreen) -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         TOP_LEVEL_SCREENS.chunked(2).forEach { rowItems ->
             Row(
@@ -124,8 +135,15 @@ private fun QuestionsGrid(onSelect: (QuestionsScreen) -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 rowItems.forEach { option ->
+                    val enabled = when (option) {
+                        // Radar stays available until every distance has been used.
+                        QuestionsScreen.RADAR ->
+                            SELECTABLE_RADAR_LABELS.any { it !in askedRadarLabels }
+                        else -> option.name !in askedCategories
+                    }
                     Button(
                         onClick = { onSelect(option) },
+                        enabled = enabled,
                         modifier = Modifier.weight(1f),
                     ) {
                         Text(
@@ -150,12 +168,16 @@ private fun QuestionsGrid(onSelect: (QuestionsScreen) -> Unit) {
 private fun QuestionsSubmenu(
     screen: QuestionsScreen,
     onRadarRadiusSelected: (label: String, radiusMiles: Double) -> Unit,
+    askedRadarLabels: Set<String>,
     nearestLineName: String?,
     matchingEnabled: Boolean,
     onMatchingAnswer: (same: Boolean) -> Unit,
 ) {
     when (screen) {
-        QuestionsScreen.RADAR -> RadarSubmenu(onRadiusSelected = onRadarRadiusSelected)
+        QuestionsScreen.RADAR -> RadarSubmenu(
+            onRadiusSelected = onRadarRadiusSelected,
+            askedRadarLabels = askedRadarLabels,
+        )
         QuestionsScreen.MATCHING -> MatchingSubmenu(
             nearestLineName = nearestLineName,
             enabled = matchingEnabled,
@@ -240,8 +262,15 @@ private val RADAR_RADIUS_VALUES: Map<String, Double?> = mapOf(
     "???" to null,
 )
 
+/** Radar distances that can actually be cast (excludes placeholder "???"). */
+private val SELECTABLE_RADAR_LABELS: Set<String> =
+    RADAR_RADIUS_VALUES.filterValues { it != null }.keys
+
 @Composable
-private fun RadarSubmenu(onRadiusSelected: (label: String, radiusMiles: Double) -> Unit) {
+private fun RadarSubmenu(
+    onRadiusSelected: (label: String, radiusMiles: Double) -> Unit,
+    askedRadarLabels: Set<String>,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
         // Casting info
@@ -277,7 +306,7 @@ private fun RadarSubmenu(onRadiusSelected: (label: String, radiusMiles: Double) 
                             onClick = {
                                 if (radiusValue != null) onRadiusSelected(label, radiusValue)
                             },
-                            enabled = radiusValue != null,
+                            enabled = radiusValue != null && label !in askedRadarLabels,
                             modifier = Modifier.weight(1f),
                         ) {
                             Text(

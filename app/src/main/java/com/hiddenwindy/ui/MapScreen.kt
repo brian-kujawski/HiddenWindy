@@ -58,6 +58,7 @@ fun MapScreen(
     var showDebugToast by remember { mutableStateOf(false) }
     var showQuestionsModal by remember { mutableStateOf(false) }
     var questionsStartOnRadar by remember { mutableStateOf(false) }
+    var showHistoryModal by remember { mutableStateOf(false) }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -99,6 +100,7 @@ fun MapScreen(
                     questionsStartOnRadar = false
                     showQuestionsModal = true
                 },
+                onOpenHistory = { showHistoryModal = true },
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(4.dp),
@@ -115,6 +117,11 @@ fun MapScreen(
                 },
                 nearestLineName = viewModel.nearestLineToMe(),
                 matchingEnabled = state.effectiveLocation != null,
+                askedCategories = state.askedQuestions.map { it.category }.toSet(),
+                askedRadarLabels = state.askedQuestions
+                    .filter { it.category == com.hiddenwindy.game.QuestionCategory.RADAR }
+                    .map { it.detail.removeSuffix(" mi") }
+                    .toSet(),
                 onMatchingAnswer = { same ->
                     viewModel.askMatching(same)
                     showQuestionsModal = false
@@ -124,6 +131,13 @@ fun MapScreen(
                     showQuestionsModal = false
                     questionsStartOnRadar = false
                 },
+            )
+        }
+
+        if (showHistoryModal) {
+            HistoryModal(
+                questions = state.askedQuestions,
+                onDismiss = { showHistoryModal = false },
             )
         }
 
@@ -201,6 +215,7 @@ private fun HamburgerMenu(
     isDebugLocationActive: Boolean,
     onToggleDebugLocation: () -> Unit,
     onOpenQuestionsMenu: () -> Unit,
+    onOpenHistory: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -267,7 +282,7 @@ private fun HamburgerMenu(
             )
             DropdownMenuItem(
                 text = { Text("History") },
-                onClick = { menuExpanded = false },
+                onClick = { menuExpanded = false; onOpenHistory() },
             )
             DropdownMenuItem(
                 text = { Text("New Game") },

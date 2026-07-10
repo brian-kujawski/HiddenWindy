@@ -26,6 +26,22 @@ data class RadarResult(
     val hiderIsInside: Boolean,
 )
 
+/** Stable keys for each top-level question, matching the Questions menu items. */
+object QuestionCategory {
+    const val MATCHING = "MATCHING"
+    const val RADAR = "RADAR"
+}
+
+/** A question asked this game, shown in the History list (e.g. "Radar, 5 mi"). */
+data class AskedQuestion(
+    /** Stable category key (see [QuestionCategory]); each may be asked once per game. */
+    val category: String,
+    /** Display name, e.g. "Matching" or "Radar". */
+    val label: String,
+    /** Specifics, e.g. "Train Line" or "5 mi". */
+    val detail: String,
+)
+
 /** Immutable snapshot of the game, observed by the UI and the map renderer. */
 data class GameState(
     val stations: List<Station> = emptyList(),
@@ -39,6 +55,7 @@ data class GameState(
     val radarPending: RadarPending? = null,
     val radarConfirmed: RadarConfirmed? = null,
     val radarResults: List<RadarResult> = emptyList(),
+    val askedQuestions: List<AskedQuestion> = emptyList(),
 ) {
     /** Centers of every clear (in-play) circle: the locked zone plus the active station's zone. */
     val clearZoneCenters: List<Point>
