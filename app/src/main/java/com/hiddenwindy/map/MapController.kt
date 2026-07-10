@@ -38,6 +38,7 @@ class MapController {
         style.addSource(GeoJsonSource(MapConstants.REFERENCE_SOURCE, empty))
         style.addSource(GeoJsonSource(MapConstants.MY_LOCATION_SOURCE, empty))
         style.addSource(GeoJsonSource(MapConstants.RADAR_PREVIEW_SOURCE, empty))
+        style.addSource(GeoJsonSource(MapConstants.RADAR_RESULT_SOURCE, empty))
 
         // Transit lines (data-driven colour from the "color" property).
         style.addLayer(
@@ -106,6 +107,14 @@ class MapController {
             )
         )
 
+        // Permanent radar results — deep red, higher opacity than directional cuts.
+        style.addLayer(
+            FillLayer(MapConstants.RADAR_RESULT_FILL_LAYER, MapConstants.RADAR_RESULT_SOURCE).withProperties(
+                PropertyFactory.fillColor("#B71C1C"),
+                PropertyFactory.fillOpacity(0.45f),
+            )
+        )
+
         // My location — rendered on top of all other layers.
         style.addLayer(
             CircleLayer(MapConstants.MY_LOCATION_LAYER, MapConstants.MY_LOCATION_SOURCE).withProperties(
@@ -152,6 +161,10 @@ class MapController {
 
         source(style, MapConstants.RADAR_PREVIEW_SOURCE)?.setGeoJson(
             state.radarPreviewCircle?.let { FeatureCollection.fromFeature(Feature.fromGeometry(it)) } ?: empty
+        )
+
+        source(style, MapConstants.RADAR_RESULT_SOURCE)?.setGeoJson(
+            FeatureCollection.fromFeatures(state.radarResultPolygons.map { Feature.fromGeometry(it) })
         )
     }
 

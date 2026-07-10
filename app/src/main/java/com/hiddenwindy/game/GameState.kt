@@ -7,6 +7,25 @@ import org.maplibre.geojson.Polygon
 /** The radius the player has selected for a pending Radar cast (label = button text, e.g. "1/4"). */
 data class RadarPending(val label: String, val radiusMiles: Double)
 
+/** A Radar cast that has been confirmed — tracks the cast centre, timer, and radius. */
+data class RadarConfirmed(
+    val label: String,
+    val radiusMiles: Double,
+    val center: Point,
+    val timerStarted: Boolean = false,
+    val remainingSeconds: Int = 5 * 60,
+    /** Monotonic ID so UI can tell when a brand-new confirmation has started. */
+    val confirmedAt: Long = System.currentTimeMillis(),
+)
+
+/** The permanent result of a resolved Radar cast. */
+data class RadarResult(
+    val center: Point,
+    val radiusMiles: Double,
+    /** True = hider IS inside the circle; False = hider is NOT inside. */
+    val hiderIsInside: Boolean,
+)
+
 /** Immutable snapshot of the game, observed by the UI and the map renderer. */
 data class GameState(
     val stations: List<Station> = emptyList(),
@@ -18,6 +37,8 @@ data class GameState(
     val myLocation: Point? = null,
     val debugLocation: Point? = null,
     val radarPending: RadarPending? = null,
+    val radarConfirmed: RadarConfirmed? = null,
+    val radarResults: List<RadarResult> = emptyList(),
 ) {
     /** Centers of every clear (in-play) circle: the locked zone plus the active station's zone. */
     val clearZoneCenters: List<Point>
@@ -44,6 +65,20 @@ data class GameState(
             val pending = radarPending ?: return null
             val loc = effectiveLocation ?: return null
             return ZoneGeometry.hidingZoneCircle(loc, pending.radiusMiles)
+        }
+
+    /**
+     * Permanent radar result polygons rendered on the map:
+     * - hiderIsInside=false → filled circle (excluded zone)
+     * - hiderIsInside=true  → inverted mask (everything outside the circle)
+     */
+    val radarResultPolygons: List<Polygon>
+        get() = radarResults.mapNotNull { result ->
+            if (result.hiderIsInside) {
+                ZoneGeometry.hidingZoneMask(listOf(result.center), result.radiusMiles)
+            } else {
+                ZoneGeometry.hidingZoneCircle(result.center, result.radiusMiles)
+            }
         }
 
     /** Inverted mask that shades everything OUTSIDE the clear circles, or null when there are none. */

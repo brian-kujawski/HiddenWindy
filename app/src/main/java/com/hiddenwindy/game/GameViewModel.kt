@@ -12,6 +12,8 @@ import com.google.android.gms.location.Priority
 import com.hiddenwindy.data.Station
 import com.hiddenwindy.data.TransitRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +27,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = TransitRepository(application)
     private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(application)
+    private var timerJob: Job? = null
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -100,6 +103,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Clears all game state (overlays, selections, locks) while keeping the station list. */
     fun resetGame() {
+        timerJob?.cancel()
+        timerJob = null
         _state.update { GameState(stations = it.stations, myLocation = it.myLocation) }
     }
 
@@ -122,6 +127,65 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     /** Clears the pending Radar preview. */
     fun clearRadarPending() {
         _state.update { it.copy(radarPending = null) }
+    }
+
+    /**
+     * Confirms the pending radar cast: captures the current location as the cast centre,
+     * clears the preview, and arms the 5-minute countdown.
+     */
+    fun confirmRadar() {
+        val pending = _state.value.radarPending ?: return
+        val center = _state.value.effectiveLocation ?: return
+        _state.update { state ->
+            state.copy(
+                radarPending = null,
+                radarConfirmed = RadarConfirmed(
+                    label = pending.label,
+                    radiusMiles = pending.radiusMiles,
+                    center = center,
+                ),
+            )
+        }
+    }
+
+    /** Starts the radar countdown. No-op if already running. */
+    fun startRadarTimer() {
+        if (_state.value.radarConfirmed?.timerStarted == true) return
+        _state.update { state ->
+            state.copy(radarConfirmed = state.radarConfirmed?.copy(timerStarted = true))
+        }
+        timerJob = viewModelScope.launch {
+            while (true) {
+                delay(1_000)
+                val remaining = _state.value.radarConfirmed?.remainingSeconds ?: break
+                if (remaining <= 0) break
+                _state.update { state ->
+                    state.copy(radarConfirmed = state.radarConfirmed?.copy(remainingSeconds = remaining - 1))
+                }
+            }
+        }
+    }
+
+    /**
+     * Resolves the radar cast. Creates a permanent [RadarResult] on the map and clears the
+     * confirmation state. [hiderIsInside] = true shades everything outside the circle;
+     * false shades the circle itself (excluded zone).
+     */
+    fun resolveRadar(hiderIsInside: Boolean) {
+        timerJob?.cancel()
+        timerJob = null
+        val confirmed = _state.value.radarConfirmed ?: return
+        val result = RadarResult(
+            center = confirmed.center,
+            radiusMiles = confirmed.radiusMiles,
+            hiderIsInside = hiderIsInside,
+        )
+        _state.update { state ->
+            state.copy(
+                radarConfirmed = null,
+                radarResults = state.radarResults + result,
+            )
+        }
     }
 
     companion object {
@@ -148,6 +212,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     override fun onCleared() {
         super.onCleared()
         fusedLocationClient.removeLocationUpdates(locationCallback)
+        timerJob?.cancel()
     }
 
     private fun haversineMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {

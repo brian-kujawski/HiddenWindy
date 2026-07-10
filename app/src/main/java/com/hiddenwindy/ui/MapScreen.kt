@@ -123,13 +123,26 @@ fun MapScreen(
         state.radarPending?.let { pending ->
             RadarPanel(
                 label = pending.label,
-                onConfirm = { /* TODO */ },
+                confirmEnabled = state.effectiveLocation != null,
+                onConfirm = { viewModel.confirmRadar() },
                 onAdjust = { /* TODO */ },
                 onCancel = {
                     viewModel.clearRadarPending()
                     questionsStartOnRadar = true
                     showQuestionsModal = true
                 },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(12.dp),
+            )
+        }
+
+        state.radarConfirmed?.let { confirmed ->
+            RadarConfirmPanel(
+                confirmed = confirmed,
+                onStartTimer = viewModel::startRadarTimer,
+                onResolve = viewModel::resolveRadar,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
@@ -158,16 +171,18 @@ fun MapScreen(
             }
         }
 
-        ControlPanel(
-            state = state,
-            onToggleHidingZone = viewModel::toggleHidingZone,
-            onLockZone = viewModel::lockHidingZone,
-            onUnlockZone = viewModel::unlockHidingZone,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(12.dp),
-        )
+        if (state.radarConfirmed == null) {
+            ControlPanel(
+                state = state,
+                onToggleHidingZone = viewModel::toggleHidingZone,
+                onLockZone = viewModel::lockHidingZone,
+                onUnlockZone = viewModel::unlockHidingZone,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(12.dp),
+            )
+        }
     }
 }
 
@@ -345,6 +360,7 @@ private fun ControlPanel(
 @Composable
 private fun RadarPanel(
     label: String,
+    confirmEnabled: Boolean,
     onConfirm: () -> Unit,
     onAdjust: () -> Unit,
     onCancel: () -> Unit,
@@ -365,6 +381,7 @@ private fun RadarPanel(
             ) {
                 Button(
                     onClick = onConfirm,
+                    enabled = confirmEnabled,
                     modifier = Modifier.weight(1f),
                 ) {
                     Text("Confirm")
