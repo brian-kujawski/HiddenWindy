@@ -53,10 +53,9 @@ private val TOP_LEVEL_SCREENS = listOf(
 )
 
 /** Sub-categories shown after tapping Matching. */
-private enum class MatchCategory(val displayName: String, val direct: Boolean = false) {
+private enum class MatchCategory(val displayName: String) {
     TRANSIT("Transit"),
-    // Municipality has no submenu: tapping it goes straight to its single confirmation.
-    MUNICIPALITY("Municipality", direct = true),
+    DIVISIONS("Divisions"),
     NATURAL("Natural"),
     POI("POI"),
     UTILITIES("Utilities"),
@@ -82,8 +81,8 @@ private enum class MatchQuestion(
     STATION_NAME_LENGTH(MatchCategory.TRANSIT, "Station's Name Length"),
     STREET_OR_PATH(MatchCategory.TRANSIT, "Street or Path"),
 
-    // Municipality (direct category — no submenu)
-    MUNICIPALITY(MatchCategory.MUNICIPALITY, "Municipality"),
+    // Divisions
+    MUNICIPALITY(MatchCategory.DIVISIONS, "Municipality"),
 
     // Natural
     PARK(MatchCategory.NATURAL, "Park"),
@@ -102,6 +101,55 @@ private enum class MatchQuestion(
     FOREIGN_CONSULATE(MatchCategory.UTILITIES, "Foreign Consulate"),
 }
 
+/** Sub-categories shown after tapping Measuring. */
+private enum class MeasureCategory(val displayName: String) {
+    TRANSIT("Transit"),
+    BORDERS("Borders"),
+    NATURAL("Natural"),
+    POI("POI"),
+    UTILITIES("Utilities"),
+}
+
+/**
+ * A single Measuring question. Like [MatchQuestion], each is backed by a precomputed dataset
+ * (see tools/build_line_regions.py); a null [dataset] renders a "coming soon" placeholder. Add a
+ * question by adding an entry here — no other UI changes are needed to list it.
+ */
+private enum class MeasureQuestion(
+    val category: MeasureCategory,
+    val displayName: String,
+    val dataset: String? = null,
+) {
+    // Transit
+    M_AIRPORT(MeasureCategory.TRANSIT, "Airport"),
+    HIGH_SPEED_TRAIN_LINE(MeasureCategory.TRANSIT, "High Speed Train Line"),
+    RAIL_STATION(MeasureCategory.TRANSIT, "Rail Station"),
+
+    // Borders
+    INTERNATIONAL(MeasureCategory.BORDERS, "International"),
+    STATE(MeasureCategory.BORDERS, "State"),
+    COUNTY(MeasureCategory.BORDERS, "County"),
+
+    // Natural
+    BODY_OF_WATER(MeasureCategory.NATURAL, "Body of Water"),
+    COASTLINE(MeasureCategory.NATURAL, "Coastline"),
+    MOUNTAIN(MeasureCategory.NATURAL, "Mountain"),
+    M_PARK(MeasureCategory.NATURAL, "Park"),
+
+    // POI
+    M_AMUSEMENT_PARK(MeasureCategory.POI, "Amusement Park"),
+    M_ZOO(MeasureCategory.POI, "Zoo"),
+    M_AQUARIUM(MeasureCategory.POI, "Aquarium"),
+    M_GOLF_COURSE(MeasureCategory.POI, "Golf Course"),
+    M_MUSEUM(MeasureCategory.POI, "Museum"),
+    M_MOVIE_THEATER(MeasureCategory.POI, "Movie Theater"),
+
+    // Utilities
+    M_HOSPITAL(MeasureCategory.UTILITIES, "Hospital"),
+    M_LIBRARY(MeasureCategory.UTILITIES, "Library"),
+    M_FOREIGN_CONSULATE(MeasureCategory.UTILITIES, "Foreign Consulate"),
+}
+
 @Composable
 fun QuestionsModal(
     onDismiss: () -> Unit,
@@ -116,6 +164,8 @@ fun QuestionsModal(
     var screen by remember { mutableStateOf(if (startOnRadar) QuestionsScreen.RADAR else QuestionsScreen.HOME) }
     var matchCategory by remember { mutableStateOf<MatchCategory?>(null) }
     var matchQuestion by remember { mutableStateOf<MatchQuestion?>(null) }
+    var measureCategory by remember { mutableStateOf<MeasureCategory?>(null) }
+    var measureQuestion by remember { mutableStateOf<MeasureQuestion?>(null) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -136,16 +186,15 @@ fun QuestionsModal(
                     if (screen != QuestionsScreen.HOME) {
                         IconButton(onClick = {
                             when {
-                                screen == QuestionsScreen.MATCHING && matchQuestion != null -> {
-                                    // Direct categories skip the question list, so back exits the
-                                    // whole sub-category rather than landing on a one-item list.
-                                    if (matchCategory?.direct == true) matchCategory = null
-                                    matchQuestion = null
-                                }
+                                screen == QuestionsScreen.MATCHING && matchQuestion != null -> matchQuestion = null
                                 screen == QuestionsScreen.MATCHING && matchCategory != null -> matchCategory = null
+                                screen == QuestionsScreen.MEASURING && measureQuestion != null -> measureQuestion = null
+                                screen == QuestionsScreen.MEASURING && measureCategory != null -> measureCategory = null
                                 else -> {
                                     matchCategory = null
                                     matchQuestion = null
+                                    measureCategory = null
+                                    measureQuestion = null
                                     screen = QuestionsScreen.HOME
                                 }
                             }
@@ -158,9 +207,10 @@ fun QuestionsModal(
                     }
                     Text(
                         text = when {
-                            screen != QuestionsScreen.MATCHING -> screen.displayName
-                            matchQuestion != null -> matchQuestion!!.displayName
-                            matchCategory != null -> matchCategory!!.displayName
+                            screen == QuestionsScreen.MATCHING ->
+                                matchQuestion?.displayName ?: matchCategory?.displayName ?: screen.displayName
+                            screen == QuestionsScreen.MEASURING ->
+                                measureQuestion?.displayName ?: measureCategory?.displayName ?: screen.displayName
                             else -> screen.displayName
                         },
                         style = MaterialTheme.typography.titleLarge,
@@ -185,15 +235,16 @@ fun QuestionsModal(
                         question = matchQuestion,
                         nearestLineName = nearestLineName,
                         matchingEnabled = matchingEnabled,
-                        onSelectCategory = { cat ->
-                            matchCategory = cat
-                            // Direct categories have no submenu: jump to their single question.
-                            if (cat.direct) {
-                                matchQuestion = MatchQuestion.entries.firstOrNull { it.category == cat }
-                            }
-                        },
+                        onSelectCategory = { matchCategory = it },
                         onSelectQuestion = { matchQuestion = it },
                         onMatchingAnswer = onMatchingAnswer,
+                    )
+                } else if (screen == QuestionsScreen.MEASURING) {
+                    MeasuringNav(
+                        category = measureCategory,
+                        question = measureQuestion,
+                        onSelectCategory = { measureCategory = it },
+                        onSelectQuestion = { measureQuestion = it },
                     )
                 } else {
                     QuestionsSubmenu(
@@ -299,6 +350,35 @@ private fun MatchingNav(
         else -> ButtonColumn(
             labels = MatchCategory.entries.map { it.displayName },
             onSelect = { index -> onSelectCategory(MatchCategory.entries[index]) },
+        )
+    }
+}
+
+/** Measuring navigation: sub-category list -> question list -> the answer UI. */
+@Composable
+private fun MeasuringNav(
+    category: MeasureCategory?,
+    question: MeasureQuestion?,
+    onSelectCategory: (MeasureCategory) -> Unit,
+    onSelectQuestion: (MeasureQuestion) -> Unit,
+) {
+    when {
+        // No Measuring question has a dataset yet, so every leaf is a placeholder for now.
+        question != null -> ComingSoon(question.displayName)
+        category != null -> {
+            val questions = MeasureQuestion.entries.filter { it.category == category }
+            if (questions.isEmpty()) {
+                ComingSoon(category.displayName)
+            } else {
+                ButtonColumn(
+                    labels = questions.map { it.displayName },
+                    onSelect = { index -> onSelectQuestion(questions[index]) },
+                )
+            }
+        }
+        else -> ButtonColumn(
+            labels = MeasureCategory.entries.map { it.displayName },
+            onSelect = { index -> onSelectCategory(MeasureCategory.entries[index]) },
         )
     }
 }
