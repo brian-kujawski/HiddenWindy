@@ -114,6 +114,16 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Arms a Radar preview with the given radius. */
+    fun setRadarPending(label: String, radiusMiles: Double) {
+        _state.update { it.copy(radarPending = RadarPending(label, radiusMiles)) }
+    }
+
+    /** Clears the pending Radar preview. */
+    fun clearRadarPending() {
+        _state.update { it.copy(radarPending = null) }
+    }
+
     companion object {
         /** Cloud Gate ("The Bean"), Millennium Park. */
         private val BEAN_LOCATION = Point.fromLngLat(-87.62332881571997, 41.88270578560553)

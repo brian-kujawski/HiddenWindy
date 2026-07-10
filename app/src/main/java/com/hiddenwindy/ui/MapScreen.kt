@@ -18,6 +18,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,6 +56,8 @@ fun MapScreen(
     val context = LocalContext.current
     var debugEnabled by remember { mutableStateOf(false) }
     var showDebugToast by remember { mutableStateOf(false) }
+    var showQuestionsModal by remember { mutableStateOf(false) }
+    var questionsStartOnRadar by remember { mutableStateOf(false) }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -92,9 +95,45 @@ fun MapScreen(
                 },
                 isDebugLocationActive = state.debugLocation != null,
                 onToggleDebugLocation = viewModel::toggleBeanLocation,
+                onOpenQuestionsMenu = {
+                    questionsStartOnRadar = false
+                    showQuestionsModal = true
+                },
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(4.dp),
+            )
+        }
+
+        if (showQuestionsModal) {
+            QuestionsModal(
+                startOnRadar = questionsStartOnRadar,
+                onRadarRadiusSelected = { label, radius ->
+                    viewModel.setRadarPending(label, radius)
+                    showQuestionsModal = false
+                    questionsStartOnRadar = false
+                },
+                onDismiss = {
+                    showQuestionsModal = false
+                    questionsStartOnRadar = false
+                },
+            )
+        }
+
+        state.radarPending?.let { pending ->
+            RadarPanel(
+                label = pending.label,
+                onConfirm = { /* TODO */ },
+                onAdjust = { /* TODO */ },
+                onCancel = {
+                    viewModel.clearRadarPending()
+                    questionsStartOnRadar = true
+                    showQuestionsModal = true
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(12.dp),
             )
         }
 
@@ -139,18 +178,14 @@ private fun HamburgerMenu(
     onDebugUnlocked: () -> Unit,
     isDebugLocationActive: Boolean,
     onToggleDebugLocation: () -> Unit,
+    onOpenQuestionsMenu: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var showNewGameDialog by remember { mutableStateOf(false) }
-    var showQuestionsModal by remember { mutableStateOf(false) }
     var showDebugModal by remember { mutableStateOf(false) }
     var tapCount by remember { mutableIntStateOf(0) }
     var lastTapTime by remember { mutableStateOf(0L) }
-
-    if (showQuestionsModal) {
-        QuestionsModal(onDismiss = { showQuestionsModal = false })
-    }
 
     if (showDebugModal) {
         DebugModal(
@@ -202,7 +237,7 @@ private fun HamburgerMenu(
         ) {
             DropdownMenuItem(
                 text = { Text("Questions") },
-                onClick = { menuExpanded = false; showQuestionsModal = true },
+                onClick = { menuExpanded = false; onOpenQuestionsMenu() },
             )
             DropdownMenuItem(
                 text = { Text("Rules") },
@@ -301,6 +336,50 @@ private fun ControlPanel(
                     ) {
                         Text("Lock It In")
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RadarPanel(
+    label: String,
+    onConfirm: () -> Unit,
+    onAdjust: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier = modifier) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Radar: $label mile radius",
+                fontWeight = FontWeight.Medium,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    onClick = onConfirm,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Confirm")
+                }
+                OutlinedButton(
+                    onClick = onAdjust,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Adjust")
+                }
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Cancel")
                 }
             }
         }

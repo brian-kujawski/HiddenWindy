@@ -53,8 +53,12 @@ private val TOP_LEVEL_SCREENS = listOf(
 )
 
 @Composable
-fun QuestionsModal(onDismiss: () -> Unit) {
-    var screen by remember { mutableStateOf(QuestionsScreen.HOME) }
+fun QuestionsModal(
+    onDismiss: () -> Unit,
+    startOnRadar: Boolean = false,
+    onRadarRadiusSelected: (label: String, radiusMiles: Double) -> Unit = { _, _ -> },
+) {
+    var screen by remember { mutableStateOf(if (startOnRadar) QuestionsScreen.RADAR else QuestionsScreen.HOME) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -95,7 +99,7 @@ fun QuestionsModal(onDismiss: () -> Unit) {
                 if (screen == QuestionsScreen.HOME) {
                     QuestionsGrid(onSelect = { screen = it })
                 } else {
-                    QuestionsSubmenu(screen = screen)
+                    QuestionsSubmenu(screen = screen, onRadarRadiusSelected = onRadarRadiusSelected)
                 }
             }
         }
@@ -134,9 +138,12 @@ private fun QuestionsGrid(onSelect: (QuestionsScreen) -> Unit) {
 }
 
 @Composable
-private fun QuestionsSubmenu(screen: QuestionsScreen) {
+private fun QuestionsSubmenu(
+    screen: QuestionsScreen,
+    onRadarRadiusSelected: (label: String, radiusMiles: Double) -> Unit,
+) {
     when (screen) {
-        QuestionsScreen.RADAR -> RadarSubmenu()
+        QuestionsScreen.RADAR -> RadarSubmenu(onRadiusSelected = onRadarRadiusSelected)
         else -> Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -153,8 +160,19 @@ private fun QuestionsSubmenu(screen: QuestionsScreen) {
 
 private val RADAR_RADII = listOf("1/4", "1/2", "1", "3", "5", "10", "25", "???")
 
+private val RADAR_RADIUS_VALUES: Map<String, Double?> = mapOf(
+    "1/4" to 0.25,
+    "1/2" to 0.5,
+    "1" to 1.0,
+    "3" to 3.0,
+    "5" to 5.0,
+    "10" to 10.0,
+    "25" to 25.0,
+    "???" to null,
+)
+
 @Composable
-private fun RadarSubmenu() {
+private fun RadarSubmenu(onRadiusSelected: (label: String, radiusMiles: Double) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
         // Casting info
@@ -185,8 +203,12 @@ private fun RadarSubmenu() {
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     rowItems.forEach { label ->
+                        val radiusValue = RADAR_RADIUS_VALUES[label]
                         Button(
-                            onClick = { },
+                            onClick = {
+                                if (radiusValue != null) onRadiusSelected(label, radiusValue)
+                            },
+                            enabled = radiusValue != null,
                             modifier = Modifier.weight(1f),
                         ) {
                             Text(

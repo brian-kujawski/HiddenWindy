@@ -37,6 +37,7 @@ class MapController {
         style.addSource(GeoJsonSource(MapConstants.SELECTED_SOURCE, empty))
         style.addSource(GeoJsonSource(MapConstants.REFERENCE_SOURCE, empty))
         style.addSource(GeoJsonSource(MapConstants.MY_LOCATION_SOURCE, empty))
+        style.addSource(GeoJsonSource(MapConstants.RADAR_PREVIEW_SOURCE, empty))
 
         // Transit lines (data-driven colour from the "color" property).
         style.addLayer(
@@ -90,6 +91,21 @@ class MapController {
             )
         )
 
+        // Radar preview circle — shown while a radius is selected but not yet confirmed.
+        style.addLayer(
+            FillLayer(MapConstants.RADAR_PREVIEW_FILL_LAYER, MapConstants.RADAR_PREVIEW_SOURCE).withProperties(
+                PropertyFactory.fillColor("#FF6F00"),
+                PropertyFactory.fillOpacity(0.12f),
+            )
+        )
+        style.addLayer(
+            LineLayer(MapConstants.RADAR_PREVIEW_LINE_LAYER, MapConstants.RADAR_PREVIEW_SOURCE).withProperties(
+                PropertyFactory.lineColor("#FF6F00"),
+                PropertyFactory.lineWidth(2.0f),
+                PropertyFactory.lineDasharray(arrayOf(4f, 3f)),
+            )
+        )
+
         // My location — rendered on top of all other layers.
         style.addLayer(
             CircleLayer(MapConstants.MY_LOCATION_LAYER, MapConstants.MY_LOCATION_SOURCE).withProperties(
@@ -132,6 +148,10 @@ class MapController {
 
         source(style, MapConstants.MY_LOCATION_SOURCE)?.setGeoJson(
             state.effectiveLocation?.let { FeatureCollection.fromFeature(Feature.fromGeometry(it)) } ?: empty
+        )
+
+        source(style, MapConstants.RADAR_PREVIEW_SOURCE)?.setGeoJson(
+            state.radarPreviewCircle?.let { FeatureCollection.fromFeature(Feature.fromGeometry(it)) } ?: empty
         )
     }
 

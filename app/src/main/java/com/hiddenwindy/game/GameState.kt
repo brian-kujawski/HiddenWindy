@@ -4,6 +4,9 @@ import com.hiddenwindy.data.Station
 import org.maplibre.geojson.Point
 import org.maplibre.geojson.Polygon
 
+/** The radius the player has selected for a pending Radar cast (label = button text, e.g. "1/4"). */
+data class RadarPending(val label: String, val radiusMiles: Double)
+
 /** Immutable snapshot of the game, observed by the UI and the map renderer. */
 data class GameState(
     val stations: List<Station> = emptyList(),
@@ -14,6 +17,7 @@ data class GameState(
     val lockedZone: Point? = null,
     val myLocation: Point? = null,
     val debugLocation: Point? = null,
+    val radarPending: RadarPending? = null,
 ) {
     /** Centers of every clear (in-play) circle: the locked zone plus the active station's zone. */
     val clearZoneCenters: List<Point>
@@ -33,6 +37,14 @@ data class GameState(
     /** The location shown on the map: debug override if active, otherwise real GPS. */
     val effectiveLocation: Point?
         get() = debugLocation ?: myLocation
+
+    /** Radar preview circle, or null when no radius is pending or no location is known. */
+    val radarPreviewCircle: Polygon?
+        get() {
+            val pending = radarPending ?: return null
+            val loc = effectiveLocation ?: return null
+            return ZoneGeometry.hidingZoneCircle(loc, pending.radiusMiles)
+        }
 
     /** Inverted mask that shades everything OUTSIDE the clear circles, or null when there are none. */
     val hidingZoneMask: Polygon?
