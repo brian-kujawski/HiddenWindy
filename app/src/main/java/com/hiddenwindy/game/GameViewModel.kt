@@ -73,7 +73,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
      * everything outside that line's region; false shades the region itself.
      */
     fun askMatching(same: Boolean) {
-        if (_state.value.askedQuestions.any { it.category == QuestionCategory.MATCHING }) return
         val name = nearestLineToMe() ?: return
         val regions = lineRegions[name] ?: return
         val eliminator = LineMatchEliminator(
@@ -85,7 +84,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val record = AskedQuestion(
             category = QuestionCategory.MATCHING,
             label = "Matching",
-            detail = "Train Line",
+            detail = "Transit Line",
         )
         _state.update {
             it.copy(

@@ -161,6 +161,8 @@ fun QuestionsModal(
     onThermometerSelected: (label: String, distanceMiles: Double) -> Unit = { _, _ -> },
     askedCategories: Set<String> = emptySet(),
     askedRadarLabels: Set<String> = emptySet(),
+    askedThermometerLabels: Set<String> = emptySet(),
+    askedMatchingDetails: Set<String> = emptySet(),
 ) {
     var screen by remember { mutableStateOf(if (startOnRadar) QuestionsScreen.RADAR else QuestionsScreen.HOME) }
     var matchCategory by remember { mutableStateOf<MatchCategory?>(null) }
@@ -228,6 +230,8 @@ fun QuestionsModal(
                       QuestionsGrid(
                           askedCategories = askedCategories,
                           askedRadarLabels = askedRadarLabels,
+                          askedThermometerLabels = askedThermometerLabels,
+                          askedMatchingDetails = askedMatchingDetails,
                           onSelect = { screen = it },
                       )
                 } else if (screen == QuestionsScreen.MATCHING) {
@@ -236,6 +240,7 @@ fun QuestionsModal(
                         question = matchQuestion,
                         nearestLineName = nearestLineName,
                         matchingEnabled = matchingEnabled,
+                        askedMatchingDetails = askedMatchingDetails,
                         onSelectCategory = { matchCategory = it },
                         onSelectQuestion = { matchQuestion = it },
                         onMatchingAnswer = onMatchingAnswer,
@@ -253,6 +258,7 @@ fun QuestionsModal(
                         onRadarRadiusSelected = onRadarRadiusSelected,
                         onThermometerSelected = onThermometerSelected,
                         askedRadarLabels = askedRadarLabels,
+                        askedThermometerLabels = askedThermometerLabels,
                     )
                 }
             }
@@ -264,6 +270,8 @@ fun QuestionsModal(
 private fun QuestionsGrid(
     askedCategories: Set<String>,
     askedRadarLabels: Set<String>,
+    askedThermometerLabels: Set<String>,
+    askedMatchingDetails: Set<String>,
     onSelect: (QuestionsScreen) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -274,9 +282,12 @@ private fun QuestionsGrid(
             ) {
                 rowItems.forEach { option ->
                     val enabled = when (option) {
-                        // Radar stays available until every distance has been used.
                         QuestionsScreen.RADAR ->
                             SELECTABLE_RADAR_LABELS.any { it !in askedRadarLabels }
+                        QuestionsScreen.THERMOMETER ->
+                            THERMOMETER_OPTIONS.any { (label, _) -> label !in askedThermometerLabels }
+                        QuestionsScreen.MATCHING ->
+                            MatchQuestion.entries.any { q -> q.dataset != null && q.displayName !in askedMatchingDetails }
                         else -> option.name !in askedCategories
                     }
                     Button(
@@ -308,13 +319,17 @@ private fun QuestionsSubmenu(
     onRadarRadiusSelected: (label: String, radiusMiles: Double) -> Unit,
     onThermometerSelected: (label: String, distanceMiles: Double) -> Unit,
     askedRadarLabels: Set<String>,
+    askedThermometerLabels: Set<String>,
 ) {
     when (screen) {
         QuestionsScreen.RADAR -> RadarSubmenu(
             onRadiusSelected = onRadarRadiusSelected,
             askedRadarLabels = askedRadarLabels,
         )
-        QuestionsScreen.THERMOMETER -> ThermometerSubmenu(onSelected = onThermometerSelected)
+        QuestionsScreen.THERMOMETER -> ThermometerSubmenu(
+            onSelected = onThermometerSelected,
+            askedThermometerLabels = askedThermometerLabels,
+        )
         else -> ComingSoon(screen.displayName)
     }
 }
@@ -326,6 +341,7 @@ private fun MatchingNav(
     question: MatchQuestion?,
     nearestLineName: String?,
     matchingEnabled: Boolean,
+    askedMatchingDetails: Set<String>,
     onSelectCategory: (MatchCategory) -> Unit,
     onSelectQuestion: (MatchQuestion) -> Unit,
     onMatchingAnswer: (same: Boolean) -> Unit,
@@ -345,16 +361,27 @@ private fun MatchingNav(
             if (questions.isEmpty()) {
                 ComingSoon(category.displayName)
             } else {
+                val disabledQuestions = questions.mapIndexedNotNull { index, q ->
+                    if (q.dataset != null && q.displayName in askedMatchingDetails) index else null
+                }.toSet()
                 ButtonColumn(
                     labels = questions.map { it.displayName },
+                    disabledIndices = disabledQuestions,
                     onSelect = { index -> onSelectQuestion(questions[index]) },
                 )
             }
         }
-        else -> ButtonColumn(
-            labels = MatchCategory.entries.map { it.displayName },
-            onSelect = { index -> onSelectCategory(MatchCategory.entries[index]) },
-        )
+        else -> {
+            val disabledCategories = MatchCategory.entries.mapIndexedNotNull { index, cat ->
+                val answerable = MatchQuestion.entries.filter { it.category == cat && it.dataset != null }
+                if (answerable.isNotEmpty() && answerable.all { it.displayName in askedMatchingDetails }) index else null
+            }.toSet()
+            ButtonColumn(
+                labels = MatchCategory.entries.map { it.displayName },
+                disabledIndices = disabledCategories,
+                onSelect = { index -> onSelectCategory(MatchCategory.entries[index]) },
+            )
+        }
     }
 }
 
@@ -389,11 +416,16 @@ private fun MeasuringNav(
 
 /** A vertical list of full-width buttons; reports the tapped item's index. */
 @Composable
-private fun ButtonColumn(labels: List<String>, onSelect: (Int) -> Unit) {
+private fun ButtonColumn(
+    labels: List<String>,
+    onSelect: (Int) -> Unit,
+    disabledIndices: Set<Int> = emptySet(),
+) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         labels.forEachIndexed { index, label ->
             Button(
                 onClick = { onSelect(index) },
+                enabled = index !in disabledIndices,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(label)
@@ -475,7 +507,10 @@ private val RADAR_RADII = listOf("1/4", "1/2", "1", "3", "5", "10", "25", "???")
 private val THERMOMETER_OPTIONS = listOf("1/2 Mile" to 0.5, "3 Miles" to 3.0)
 
 @Composable
-private fun ThermometerSubmenu(onSelected: (label: String, distanceMiles: Double) -> Unit) {
+private fun ThermometerSubmenu(
+    onSelected: (label: String, distanceMiles: Double) -> Unit,
+    askedThermometerLabels: Set<String> = emptySet(),
+) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
 
         // Casting info
@@ -510,6 +545,7 @@ private fun ThermometerSubmenu(onSelected: (label: String, distanceMiles: Double
             THERMOMETER_OPTIONS.forEach { (label, distanceMiles) ->
                 Button(
                     onClick = { onSelected(label, distanceMiles) },
+                    enabled = label !in askedThermometerLabels,
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(

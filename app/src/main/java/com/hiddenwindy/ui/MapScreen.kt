@@ -124,6 +124,14 @@ fun MapScreen(
                     .filter { it.category == com.hiddenwindy.game.QuestionCategory.RADAR }
                     .map { it.detail.removeSuffix(" mi") }
                     .toSet(),
+                askedThermometerLabels = state.askedQuestions
+                    .filter { it.category == com.hiddenwindy.game.QuestionCategory.THERMOMETER }
+                    .map { it.detail.substringBefore(", ") }
+                    .toSet(),
+                askedMatchingDetails = state.askedQuestions
+                    .filter { it.category == com.hiddenwindy.game.QuestionCategory.MATCHING }
+                    .map { it.detail }
+                    .toSet(),
                 onMatchingAnswer = { same ->
                     viewModel.askMatching(same)
                     showQuestionsModal = false
