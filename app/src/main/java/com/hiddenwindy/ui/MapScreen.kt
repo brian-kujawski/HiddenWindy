@@ -127,6 +127,11 @@ fun MapScreen(
                     showQuestionsModal = false
                     questionsStartOnRadar = false
                 },
+                onThermometerSelected = { label, distance ->
+                    viewModel.setThermometerPending(label, distance)
+                    showQuestionsModal = false
+                    questionsStartOnRadar = false
+                },
                 onDismiss = {
                     showQuestionsModal = false
                     questionsStartOnRadar = false
@@ -171,6 +176,48 @@ fun MapScreen(
             )
         }
 
+        state.thermometerPending?.let { pending ->
+            ThermometerStartPanel(
+                label = pending.label,
+                startEnabled = state.effectiveLocation != null,
+                onStart = { viewModel.startThermometer() },
+                onAdjust = { /* TODO */ },
+                onCancel = {
+                    viewModel.clearThermometerPending()
+                    showQuestionsModal = true
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(12.dp),
+            )
+        }
+
+        state.thermometerActive?.let { active ->
+            if (active.finish == null) {
+                ThermometerTravelPanel(
+                    label = active.label,
+                    traveledMiles = state.thermometerTraveledMiles ?: 0.0,
+                    thresholdReached = state.thermometerThresholdReached,
+                    onFinish = { viewModel.finishThermometer() },
+                    onCancel = { viewModel.cancelThermometer() },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                )
+            } else {
+                ThermometerResolvePanel(
+                    onResolve = { hotter -> viewModel.resolveThermometer(hotter) },
+                    onCancel = { viewModel.cancelThermometer() },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                )
+            }
+        }
+
         if (showDebugToast) {
             LaunchedEffect(Unit) {
                 delay(2_500)
@@ -192,7 +239,7 @@ fun MapScreen(
             }
         }
 
-        if (state.radarConfirmed == null) {
+        if (state.radarConfirmed == null && state.thermometerPending == null && state.thermometerActive == null) {
             ControlPanel(
                 state = state,
                 onToggleHidingZone = viewModel::toggleHidingZone,
@@ -413,6 +460,137 @@ private fun RadarPanel(
                     modifier = Modifier.weight(1f),
                 ) {
                     Text("Adjust")
+                }
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Cancel")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThermometerStartPanel(
+    label: String,
+    startEnabled: Boolean,
+    onStart: () -> Unit,
+    onAdjust: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier = modifier) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Thermometer: $label",
+                fontWeight = FontWeight.Medium,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    onClick = onStart,
+                    enabled = startEnabled,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Start")
+                }
+                OutlinedButton(
+                    onClick = onAdjust,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Adjust")
+                }
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Cancel")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThermometerTravelPanel(
+    label: String,
+    traveledMiles: Double,
+    thresholdReached: Boolean,
+    onFinish: () -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier = modifier) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Thermometer: $label",
+                fontWeight = FontWeight.Medium,
+            )
+            Text(
+                text = "%.1f miles / %s elapsed".format(traveledMiles, label),
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    onClick = onFinish,
+                    enabled = thresholdReached,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Finish")
+                }
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Cancel")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThermometerResolvePanel(
+    onResolve: (hotter: Boolean) -> Unit,
+    onCancel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(modifier = modifier) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "Is the hider hotter or colder than when you started?",
+                fontWeight = FontWeight.Medium,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    onClick = { onResolve(true) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Hotter")
+                }
+                Button(
+                    onClick = { onResolve(false) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Colder")
                 }
                 OutlinedButton(
                     onClick = onCancel,

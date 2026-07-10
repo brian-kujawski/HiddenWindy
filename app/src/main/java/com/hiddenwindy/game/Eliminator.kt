@@ -84,3 +84,21 @@ data class LineMatchEliminator(
             regions
         }
 }
+
+/**
+ * Eliminates based on the Thermometer question: we travelled from [start] to [finish] and the hider
+ * reported whether they got [hotter] (closer) or colder. Shades the half-plane on the far side of
+ * the perpendicular bisector of that path.
+ */
+data class ThermometerEliminator(
+    override val id: String,
+    val start: Point,
+    val finish: Point,
+    val hotter: Boolean,
+) : Eliminator {
+
+    override val label: String = if (hotter) "Hotter" else "Colder"
+
+    override fun outRegions(context: GameContext): List<Polygon> =
+        listOfNotNull(ZoneGeometry.thermometerOutPolygon(start, finish, hotter, context.bounds))
+}

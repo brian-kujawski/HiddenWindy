@@ -174,6 +174,72 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _state.update { it.copy(radarPending = null) }
     }
 
+    /** Arms a Thermometer reading with the given target distance. */
+    fun setThermometerPending(label: String, distanceMiles: Double) {
+        _state.update { it.copy(thermometerPending = ThermometerPending(label, distanceMiles)) }
+    }
+
+    /** Clears the pending Thermometer selection. */
+    fun clearThermometerPending() {
+        _state.update { it.copy(thermometerPending = null) }
+    }
+
+    /** Begins the Thermometer journey: captures the current location as the start point. */
+    fun startThermometer() {
+        val pending = _state.value.thermometerPending ?: return
+        val start = _state.value.effectiveLocation ?: return
+        _state.update {
+            it.copy(
+                thermometerPending = null,
+                thermometerActive = ThermometerActive(
+                    label = pending.label,
+                    distanceMiles = pending.distanceMiles,
+                    start = start,
+                ),
+            )
+        }
+    }
+
+    /** Ends the journey: captures the current location as the finish point, awaiting the answer. */
+    fun finishThermometer() {
+        val active = _state.value.thermometerActive ?: return
+        if (active.finish != null) return
+        val finish = _state.value.effectiveLocation ?: return
+        _state.update { it.copy(thermometerActive = active.copy(finish = finish)) }
+    }
+
+    /** Cancels any in-progress Thermometer reading. */
+    fun cancelThermometer() {
+        _state.update { it.copy(thermometerPending = null, thermometerActive = null) }
+    }
+
+    /**
+     * Resolves the Thermometer reading. [hotter] = true means the hider got closer, so the far
+     * (start) side of the path's perpendicular bisector is out of play; false shades the finish side.
+     */
+    fun resolveThermometer(hotter: Boolean) {
+        val active = _state.value.thermometerActive ?: return
+        val finish = active.finish ?: return
+        val eliminator = ThermometerEliminator(
+            id = "thermo-${eliminatorCounter++}",
+            start = active.start,
+            finish = finish,
+            hotter = hotter,
+        )
+        val record = AskedQuestion(
+            category = QuestionCategory.THERMOMETER,
+            label = "Thermometer",
+            detail = "${active.label}, ${if (hotter) "hotter" else "colder"}",
+        )
+        _state.update {
+            it.copy(
+                thermometerActive = null,
+                eliminators = it.eliminators + eliminator,
+                askedQuestions = it.askedQuestions + record,
+            )
+        }
+    }
+
     /**
      * Confirms the pending radar cast: captures the current location as the cast centre,
      * clears the preview, and arms the 5-minute countdown.

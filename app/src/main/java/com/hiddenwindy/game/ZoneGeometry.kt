@@ -102,6 +102,61 @@ object ZoneGeometry {
         return Polygon.fromLngLats(listOf(ring))
     }
 
+    /**
+     * Half-plane "out of play" polygon for the Thermometer question.
+     *
+     * We travelled from [start] to [finish]. The perpendicular bisector of that segment splits the
+     * map into the side closer to [start] and the side closer to [finish]. When the hider got
+     * [hotter] (closer) we know they are on the [finish] side, so the [start] side is out of play;
+     * when colder the [finish] side is out of play. The returned polygon covers the excluded side,
+     * extended far past [bounds] so it always spans the visible play area. Returns null when start
+     * and finish coincide (no direction to bisect).
+     */
+    fun thermometerOutPolygon(
+        start: Point,
+        finish: Point,
+        hotter: Boolean,
+        @Suppress("UNUSED_PARAMETER") bounds: CityBounds = CHICAGO_BOUNDS,
+    ): Polygon? {
+        // Work in a local metres frame so the perpendicular is a true right angle on the map.
+        val lat0 = Math.toRadians((start.latitude() + finish.latitude()) / 2.0)
+        val mPerDegLat = 111_320.0
+        val mPerDegLon = 111_320.0 * Math.cos(lat0)
+
+        fun toM(p: Point): DoubleArray =
+            doubleArrayOf(p.longitude() * mPerDegLon, p.latitude() * mPerDegLat)
+
+        fun toLngLat(x: Double, y: Double): Point =
+            Point.fromLngLat(x / mPerDegLon, y / mPerDegLat)
+
+        val s = toM(start)
+        val f = toM(finish)
+        var dx = f[0] - s[0]
+        var dy = f[1] - s[1]
+        val len = Math.hypot(dx, dy)
+        if (len == 0.0) return null
+        dx /= len
+        dy /= len
+
+        // Midpoint (a point on the bisector) and the perpendicular direction.
+        val mx = (s[0] + f[0]) / 2.0
+        val my = (s[1] + f[1]) / 2.0
+        val px = -dy
+        val py = dx
+
+        // Direction pointing into the excluded half-plane: toward start if hotter, else toward finish.
+        val outX = if (hotter) -dx else dx
+        val outY = if (hotter) -dy else dy
+
+        // Big enough to cover the whole play area (bounds span < ~180 km).
+        val big = 500_000.0
+        val a = toLngLat(mx + px * big, my + py * big)
+        val b = toLngLat(mx - px * big, my - py * big)
+        val c = toLngLat(mx - px * big + outX * big, my - py * big + outY * big)
+        val d = toLngLat(mx + px * big + outX * big, my + py * big + outY * big)
+        return Polygon.fromLngLats(listOf(listOf(a, b, c, d, a)))
+    }
+
     /** Closed rectangle ring (lon/lat) in counter-clockwise order. */
     private fun rectangle(west: Double, south: Double, east: Double, north: Double): List<DoubleArray> =
         listOf(

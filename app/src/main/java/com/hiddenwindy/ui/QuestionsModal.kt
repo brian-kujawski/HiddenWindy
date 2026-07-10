@@ -158,6 +158,7 @@ fun QuestionsModal(
     nearestLineName: String? = null,
     matchingEnabled: Boolean = false,
     onMatchingAnswer: (same: Boolean) -> Unit = {},
+    onThermometerSelected: (label: String, distanceMiles: Double) -> Unit = { _, _ -> },
     askedCategories: Set<String> = emptySet(),
     askedRadarLabels: Set<String> = emptySet(),
 ) {
@@ -250,6 +251,7 @@ fun QuestionsModal(
                     QuestionsSubmenu(
                         screen = screen,
                         onRadarRadiusSelected = onRadarRadiusSelected,
+                        onThermometerSelected = onThermometerSelected,
                         askedRadarLabels = askedRadarLabels,
                     )
                 }
@@ -304,6 +306,7 @@ private fun QuestionsGrid(
 private fun QuestionsSubmenu(
     screen: QuestionsScreen,
     onRadarRadiusSelected: (label: String, radiusMiles: Double) -> Unit,
+    onThermometerSelected: (label: String, distanceMiles: Double) -> Unit,
     askedRadarLabels: Set<String>,
 ) {
     when (screen) {
@@ -311,6 +314,7 @@ private fun QuestionsSubmenu(
             onRadiusSelected = onRadarRadiusSelected,
             askedRadarLabels = askedRadarLabels,
         )
+        QuestionsScreen.THERMOMETER -> ThermometerSubmenu(onSelected = onThermometerSelected)
         else -> ComingSoon(screen.displayName)
     }
 }
@@ -466,6 +470,59 @@ private fun MatchingSubmenu(
 }
 
 private val RADAR_RADII = listOf("1/4", "1/2", "1", "3", "5", "10", "25", "???")
+
+/** Thermometer distance options and their mile values. */
+private val THERMOMETER_OPTIONS = listOf("1/2 Mile" to 0.5, "3 Miles" to 3.0)
+
+@Composable
+private fun ThermometerSubmenu(onSelected: (label: String, distanceMiles: Double) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
+        // Casting info
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                Text(
+                    text = "COST: Draw 2, Pick 1",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Text(
+                    text = "TIME: 5 Minutes",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
+        }
+
+        HorizontalDivider()
+
+        Text(
+            text = "I've just traveled at least _____. Am I hotter or colder?",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            THERMOMETER_OPTIONS.forEach { (label, distanceMiles) ->
+                Button(
+                    onClick = { onSelected(label, distanceMiles) },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(
+                        text = label,
+                        maxLines = 1,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+        }
+    }
+}
 
 private val RADAR_RADIUS_VALUES: Map<String, Double?> = mapOf(
     "1/4" to 0.25,

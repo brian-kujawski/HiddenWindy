@@ -3,6 +3,8 @@ package com.hiddenwindy.game
 import com.hiddenwindy.data.Station
 import org.maplibre.geojson.Point
 import org.maplibre.geojson.Polygon
+import org.maplibre.turf.TurfConstants
+import org.maplibre.turf.TurfMeasurement
 
 /** The radius the player has selected for a pending Radar cast (label = button text, e.g. "1/4"). */
 data class RadarPending(val label: String, val radiusMiles: Double)
@@ -26,10 +28,26 @@ data class RadarResult(
     val hiderIsInside: Boolean,
 )
 
+/** The distance the player picked for a Thermometer reading (label = button text, e.g. "3 Miles"). */
+data class ThermometerPending(val label: String, val distanceMiles: Double)
+
+/**
+ * An in-progress Thermometer reading. [start] is captured when the player taps Start; [finish] is
+ * captured when they tap Finish. While [finish] is null we are still measuring travel; once set we
+ * are awaiting the hotter/colder answer.
+ */
+data class ThermometerActive(
+    val label: String,
+    val distanceMiles: Double,
+    val start: Point,
+    val finish: Point? = null,
+)
+
 /** Stable keys for each top-level question, matching the Questions menu items. */
 object QuestionCategory {
     const val MATCHING = "MATCHING"
     const val RADAR = "RADAR"
+    const val THERMOMETER = "THERMOMETER"
 }
 
 /** A question asked this game, shown in the History list (e.g. "Radar, 5 mi"). */
@@ -55,6 +73,8 @@ data class GameState(
     val radarPending: RadarPending? = null,
     val radarConfirmed: RadarConfirmed? = null,
     val radarResults: List<RadarResult> = emptyList(),
+    val thermometerPending: ThermometerPending? = null,
+    val thermometerActive: ThermometerActive? = null,
     val askedQuestions: List<AskedQuestion> = emptyList(),
 ) {
     /** Centers of every clear (in-play) circle: the locked zone plus the active station's zone. */
@@ -75,6 +95,23 @@ data class GameState(
     /** The location shown on the map: debug override if active, otherwise real GPS. */
     val effectiveLocation: Point?
         get() = debugLocation ?: myLocation
+
+    /** Straight-line miles travelled since the active Thermometer reading began, or null. */
+    val thermometerTraveledMiles: Double?
+        get() {
+            val active = thermometerActive ?: return null
+            if (active.finish != null) return null
+            val loc = effectiveLocation ?: return null
+            return TurfMeasurement.distance(active.start, loc, TurfConstants.UNIT_MILES)
+        }
+
+    /** True once the active Thermometer reading has travelled at least its target distance. */
+    val thermometerThresholdReached: Boolean
+        get() {
+            val active = thermometerActive ?: return false
+            val traveled = thermometerTraveledMiles ?: return false
+            return traveled >= active.distanceMiles
+        }
 
     /** Radar preview circle, or null when no radius is pending or no location is known. */
     val radarPreviewCircle: Polygon?
