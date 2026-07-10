@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -19,7 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.hiddenwindy.game.Direction
 import com.hiddenwindy.game.GameState
 import com.hiddenwindy.game.GameViewModel
 import com.hiddenwindy.map.MapViewContainer
@@ -47,9 +45,6 @@ fun MapScreen(
             state = state,
             onToggleHidingZone = viewModel::toggleHidingZone,
             onLockZone = viewModel::lockHidingZone,
-            onEliminate = viewModel::addDirectionalEliminator,
-            onUndo = viewModel::undoLastEliminator,
-            onReset = viewModel::resetEliminators,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
@@ -78,12 +73,9 @@ private fun ControlPanel(
     state: GameState,
     onToggleHidingZone: () -> Unit,
     onLockZone: () -> Unit,
-    onEliminate: (Direction) -> Unit,
-    onUndo: () -> Unit,
-    onReset: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val hasOrigin = state.activeOrigin != null
+    if (state.selectedStation == null) return
     Card(modifier = modifier) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -95,53 +87,16 @@ private fun ControlPanel(
             ) {
                 Button(
                     onClick = onToggleHidingZone,
-                    enabled = state.selectedStation != null,
                     modifier = Modifier.weight(1f),
                 ) {
                     Text(if (state.hidingZoneVisible) "Hide Zone" else "Show Zone")
                 }
                 FilledTonalButton(
                     onClick = onLockZone,
-                    enabled = state.selectedStation != null && state.hidingZoneVisible,
+                    enabled = state.hidingZoneVisible,
                     modifier = Modifier.weight(1f),
                 ) {
                     Text("Lock It In")
-                }
-            }
-
-            Text("Eliminate the side that is OUT of play:", fontWeight = FontWeight.Medium)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Direction.entries.forEach { direction ->
-                    FilledTonalButton(
-                        onClick = { onEliminate(direction) },
-                        enabled = hasOrigin,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(direction.label.take(1))
-                    }
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                OutlinedButton(
-                    onClick = onUndo,
-                    enabled = state.eliminators.isNotEmpty(),
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Undo")
-                }
-                OutlinedButton(
-                    onClick = onReset,
-                    enabled = state.eliminators.isNotEmpty(),
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Reset")
                 }
             }
         }
