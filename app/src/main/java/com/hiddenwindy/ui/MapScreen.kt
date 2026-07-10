@@ -60,16 +60,11 @@ fun MapScreen(
 
 @Composable
 private fun InfoCard(state: GameState, modifier: Modifier = Modifier) {
+    val station = state.selectedStation ?: return
     Card(modifier = modifier) {
         Column(modifier = Modifier.padding(12.dp)) {
-            val station = state.selectedStation
-            if (station == null) {
-                Text("Tap a station to select it.", fontWeight = FontWeight.Medium)
-                Text("Long-press the map to set your reference point.")
-            } else {
-                Text(station.name, fontWeight = FontWeight.Bold)
-                Text("Lines: ${station.lines.joinToString(", ").ifEmpty { "—" }}")
-            }
+            Text(station.name, fontWeight = FontWeight.Bold)
+            Text("Lines: ${station.lines.joinToString(", ").ifEmpty { "—" }}")
             val cuts = state.eliminators.size
             if (cuts > 0) {
                 Text("Active cuts: $cuts", fontWeight = FontWeight.Medium)
