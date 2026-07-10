@@ -103,6 +103,22 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _state.update { GameState(stations = it.stations, myLocation = it.myLocation) }
     }
 
+    /** Toggles the hardcoded Cloud Gate debug location on/off. */
+    fun toggleBeanLocation() {
+        _state.update { state ->
+            if (state.debugLocation != null) {
+                state.copy(debugLocation = null)
+            } else {
+                state.copy(debugLocation = BEAN_LOCATION)
+            }
+        }
+    }
+
+    companion object {
+        /** Cloud Gate ("The Bean"), Millennium Park. */
+        private val BEAN_LOCATION = Point.fromLngLat(-87.62332881571997, 41.88270578560553)
+    }
+
     /**
      * Starts receiving device location updates. Call this once the
      * ACCESS_FINE_LOCATION permission has been granted.

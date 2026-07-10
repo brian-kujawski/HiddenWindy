@@ -131,7 +131,7 @@ class MapController {
         )
 
         source(style, MapConstants.MY_LOCATION_SOURCE)?.setGeoJson(
-            state.myLocation?.let { FeatureCollection.fromFeature(Feature.fromGeometry(it)) } ?: empty
+            state.effectiveLocation?.let { FeatureCollection.fromFeature(Feature.fromGeometry(it)) } ?: empty
         )
     }
 

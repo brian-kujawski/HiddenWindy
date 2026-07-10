@@ -13,6 +13,7 @@ data class GameState(
     val eliminators: List<Eliminator> = emptyList(),
     val lockedZone: Point? = null,
     val myLocation: Point? = null,
+    val debugLocation: Point? = null,
 ) {
     /** Centers of every clear (in-play) circle: the locked zone plus the active station's zone. */
     val clearZoneCenters: List<Point>
@@ -28,6 +29,10 @@ data class GameState(
     /** True when the currently selected station is the one whose zone is locked in. */
     val isSelectedStationLocked: Boolean
         get() = lockedZone != null && selectedStation?.point()?.samePlaceAs(lockedZone) == true
+
+    /** The location shown on the map: debug override if active, otherwise real GPS. */
+    val effectiveLocation: Point?
+        get() = debugLocation ?: myLocation
 
     /** Inverted mask that shades everything OUTSIDE the clear circles, or null when there are none. */
     val hidingZoneMask: Polygon?

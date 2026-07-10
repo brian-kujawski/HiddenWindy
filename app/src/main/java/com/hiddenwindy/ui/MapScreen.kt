@@ -90,6 +90,8 @@ fun MapScreen(
                     debugEnabled = true
                     showDebugToast = true
                 },
+                isDebugLocationActive = state.debugLocation != null,
+                onToggleDebugLocation = viewModel::toggleBeanLocation,
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(4.dp),
@@ -135,16 +137,27 @@ private fun HamburgerMenu(
     onNewGame: () -> Unit,
     debugEnabled: Boolean,
     onDebugUnlocked: () -> Unit,
+    isDebugLocationActive: Boolean,
+    onToggleDebugLocation: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var showNewGameDialog by remember { mutableStateOf(false) }
     var showQuestionsModal by remember { mutableStateOf(false) }
+    var showDebugModal by remember { mutableStateOf(false) }
     var tapCount by remember { mutableIntStateOf(0) }
     var lastTapTime by remember { mutableStateOf(0L) }
 
     if (showQuestionsModal) {
         QuestionsModal(onDismiss = { showQuestionsModal = false })
+    }
+
+    if (showDebugModal) {
+        DebugModal(
+            isDebugLocationActive = isDebugLocationActive,
+            onToggleDebugLocation = onToggleDebugLocation,
+            onDismiss = { showDebugModal = false },
+        )
     }
 
     if (showNewGameDialog) {
@@ -206,7 +219,7 @@ private fun HamburgerMenu(
             if (debugEnabled) {
                 DropdownMenuItem(
                     text = { Text("Debug") },
-                    onClick = { menuExpanded = false },
+                    onClick = { menuExpanded = false; showDebugModal = true },
                 )
             }
         }
