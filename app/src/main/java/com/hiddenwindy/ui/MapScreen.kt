@@ -18,15 +18,19 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -49,6 +53,8 @@ fun MapScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    var debugEnabled by remember { mutableStateOf(false) }
+    var showDebugToast by remember { mutableStateOf(false) }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -79,10 +85,36 @@ fun MapScreen(
         if (state.selectedStation == null) {
             HamburgerMenu(
                 onNewGame = viewModel::resetGame,
+                debugEnabled = debugEnabled,
+                onDebugUnlocked = {
+                    debugEnabled = true
+                    showDebugToast = true
+                },
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(4.dp),
             )
+        }
+
+        if (showDebugToast) {
+            LaunchedEffect(Unit) {
+                delay(2_500)
+                showDebugToast = false
+            }
+            Surface(
+                shape = androidx.compose.material3.MaterialTheme.shapes.medium,
+                color = Color(0xFF212121),
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(24.dp),
+            ) {
+                Text(
+                    text = "Debug Enabled!",
+                    color = Color.White,
+                    style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                )
+            }
         }
 
         ControlPanel(
@@ -101,11 +133,15 @@ fun MapScreen(
 @Composable
 private fun HamburgerMenu(
     onNewGame: () -> Unit,
+    debugEnabled: Boolean,
+    onDebugUnlocked: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var showNewGameDialog by remember { mutableStateOf(false) }
     var showQuestionsModal by remember { mutableStateOf(false) }
+    var tapCount by remember { mutableIntStateOf(0) }
+    var lastTapTime by remember { mutableStateOf(0L) }
 
     if (showQuestionsModal) {
         QuestionsModal(onDismiss = { showQuestionsModal = false })
@@ -131,7 +167,18 @@ private fun HamburgerMenu(
 
     Box(modifier = modifier) {
         IconButton(
-            onClick = { menuExpanded = true },
+            onClick = {
+                val now = System.currentTimeMillis()
+                if (now - lastTapTime > 1_500L) tapCount = 0
+                tapCount++
+                lastTapTime = now
+                if (!debugEnabled && tapCount >= 10) {
+                    tapCount = 0
+                    onDebugUnlocked()
+                } else {
+                    menuExpanded = true
+                }
+            },
             modifier = Modifier.size(96.dp),
         ) {
             Icon(Icons.Default.Menu, contentDescription = "Menu", modifier = Modifier.size(48.dp))
@@ -156,6 +203,12 @@ private fun HamburgerMenu(
                 text = { Text("New Game") },
                 onClick = { menuExpanded = false; showNewGameDialog = true },
             )
+            if (debugEnabled) {
+                DropdownMenuItem(
+                    text = { Text("Debug") },
+                    onClick = { menuExpanded = false },
+                )
+            }
         }
     }
 }
