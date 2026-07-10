@@ -53,7 +53,7 @@ class MapController {
         // "Out of play" shading.
         style.addLayer(
             FillLayer(MapConstants.ELIMINATOR_FILL_LAYER, MapConstants.ELIMINATOR_SOURCE).withProperties(
-                PropertyFactory.fillColor("#D32F2F"),
+                PropertyFactory.fillColor("#424242"),
                 PropertyFactory.fillOpacity(0.35f),
             )
         )
@@ -107,10 +107,10 @@ class MapController {
             )
         )
 
-        // Permanent radar results — deep red, higher opacity than directional cuts.
+        // Permanent radar results — dark gray, higher opacity than directional cuts.
         style.addLayer(
             FillLayer(MapConstants.RADAR_RESULT_FILL_LAYER, MapConstants.RADAR_RESULT_SOURCE).withProperties(
-                PropertyFactory.fillColor("#B71C1C"),
+                PropertyFactory.fillColor("#424242"),
                 PropertyFactory.fillOpacity(0.45f),
             )
         )
