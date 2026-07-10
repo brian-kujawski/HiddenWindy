@@ -11,18 +11,22 @@ data class GameState(
     val hidingZoneVisible: Boolean = false,
     val referencePoint: Point? = null,
     val eliminators: List<Eliminator> = emptyList(),
-    val lockedZones: List<Point> = emptyList(),
+    val lockedZone: Point? = null,
 ) {
-    /** Centers of every clear (in-play) circle: the locked zones plus the active station's zone. */
+    /** Centers of every clear (in-play) circle: the locked zone plus the active station's zone. */
     val clearZoneCenters: List<Point>
         get() {
             val active = selectedStation?.takeIf { hidingZoneVisible }?.point()
-            return if (active != null && lockedZones.none { it.samePlaceAs(active) }) {
-                lockedZones + active
+            return if (active != null && (lockedZone == null || !lockedZone.samePlaceAs(active))) {
+                listOfNotNull(lockedZone, active)
             } else {
-                lockedZones
+                listOfNotNull(lockedZone)
             }
         }
+
+    /** True when the currently selected station is the one whose zone is locked in. */
+    val isSelectedStationLocked: Boolean
+        get() = lockedZone != null && selectedStation?.point()?.samePlaceAs(lockedZone) == true
 
     /** Inverted mask that shades everything OUTSIDE the clear circles, or null when there are none. */
     val hidingZoneMask: Polygon?

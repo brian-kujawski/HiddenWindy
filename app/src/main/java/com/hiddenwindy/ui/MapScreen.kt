@@ -7,13 +7,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +50,7 @@ fun MapScreen(
             state = state,
             onToggleHidingZone = viewModel::toggleHidingZone,
             onLockZone = viewModel::lockHidingZone,
+            onUnlockZone = viewModel::unlockHidingZone,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
@@ -73,9 +79,31 @@ private fun ControlPanel(
     state: GameState,
     onToggleHidingZone: () -> Unit,
     onLockZone: () -> Unit,
+    onUnlockZone: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     if (state.selectedStation == null) return
+
+    var showUnlockDialog by remember { mutableStateOf(false) }
+
+    if (showUnlockDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnlockDialog = false },
+            title = { Text("Unlock Zone?") },
+            text = { Text("Well, then. So much for being 'Locked In' on ${state.selectedStation.name}.") },
+            confirmButton = {
+                TextButton(onClick = { onUnlockZone(); showUnlockDialog = false }) {
+                    Text("Unlock")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUnlockDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+        )
+    }
+
     Card(modifier = modifier) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -91,12 +119,21 @@ private fun ControlPanel(
                 ) {
                     Text(if (state.hidingZoneVisible) "Hide Zone" else "Show Zone")
                 }
-                FilledTonalButton(
-                    onClick = onLockZone,
-                    enabled = state.hidingZoneVisible,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Lock It In")
+                if (state.isSelectedStationLocked) {
+                    FilledTonalButton(
+                        onClick = { showUnlockDialog = true },
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("Unlock")
+                    }
+                } else {
+                    FilledTonalButton(
+                        onClick = onLockZone,
+                        enabled = state.hidingZoneVisible && state.lockedZone == null,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("Lock It In")
+                    }
                 }
             }
         }
