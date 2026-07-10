@@ -52,6 +52,20 @@ private val TOP_LEVEL_SCREENS = listOf(
     QuestionsScreen.PHOTOS,
 )
 
+/** Sub-categories shown after tapping Matching. Only [TRANSIT] has questions so far. */
+private enum class MatchCategory(val displayName: String) {
+    TRANSIT("Transit"),
+    MUNICIPALITY("Municipality"),
+    NATURAL("Natural"),
+    POI("POI"),
+    UTILITIES("Utilities"),
+}
+
+/** Individual Matching questions within a sub-category. */
+private enum class MatchQuestion(val displayName: String) {
+    TRAIN_LINE("Train Line"),
+}
+
 @Composable
 fun QuestionsModal(
     onDismiss: () -> Unit,
@@ -64,6 +78,8 @@ fun QuestionsModal(
     askedRadarLabels: Set<String> = emptySet(),
 ) {
     var screen by remember { mutableStateOf(if (startOnRadar) QuestionsScreen.RADAR else QuestionsScreen.HOME) }
+    var matchCategory by remember { mutableStateOf<MatchCategory?>(null) }
+    var matchQuestion by remember { mutableStateOf<MatchQuestion?>(null) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -82,7 +98,17 @@ fun QuestionsModal(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (screen != QuestionsScreen.HOME) {
-                        IconButton(onClick = { screen = QuestionsScreen.HOME }) {
+                        IconButton(onClick = {
+                            when {
+                                screen == QuestionsScreen.MATCHING && matchQuestion != null -> matchQuestion = null
+                                screen == QuestionsScreen.MATCHING && matchCategory != null -> matchCategory = null
+                                else -> {
+                                    matchCategory = null
+                                    matchQuestion = null
+                                    screen = QuestionsScreen.HOME
+                                }
+                            }
+                        }) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
@@ -90,7 +116,12 @@ fun QuestionsModal(
                         }
                     }
                     Text(
-                        text = screen.displayName,
+                        text = when {
+                            screen != QuestionsScreen.MATCHING -> screen.displayName
+                            matchQuestion != null -> matchQuestion!!.displayName
+                            matchCategory != null -> matchCategory!!.displayName
+                            else -> screen.displayName
+                        },
                         style = MaterialTheme.typography.titleLarge,
                         modifier = Modifier.weight(1f),
                     )
@@ -107,14 +138,21 @@ fun QuestionsModal(
                           askedRadarLabels = askedRadarLabels,
                           onSelect = { screen = it },
                       )
+                } else if (screen == QuestionsScreen.MATCHING) {
+                    MatchingNav(
+                        category = matchCategory,
+                        question = matchQuestion,
+                        nearestLineName = nearestLineName,
+                        matchingEnabled = matchingEnabled,
+                        onSelectCategory = { matchCategory = it },
+                        onSelectQuestion = { matchQuestion = it },
+                        onMatchingAnswer = onMatchingAnswer,
+                    )
                 } else {
                     QuestionsSubmenu(
                         screen = screen,
                         onRadarRadiusSelected = onRadarRadiusSelected,
                         askedRadarLabels = askedRadarLabels,
-                        nearestLineName = nearestLineName,
-                        matchingEnabled = matchingEnabled,
-                        onMatchingAnswer = onMatchingAnswer,
                     )
                 }
             }
@@ -169,31 +207,72 @@ private fun QuestionsSubmenu(
     screen: QuestionsScreen,
     onRadarRadiusSelected: (label: String, radiusMiles: Double) -> Unit,
     askedRadarLabels: Set<String>,
-    nearestLineName: String?,
-    matchingEnabled: Boolean,
-    onMatchingAnswer: (same: Boolean) -> Unit,
 ) {
     when (screen) {
         QuestionsScreen.RADAR -> RadarSubmenu(
             onRadiusSelected = onRadarRadiusSelected,
             askedRadarLabels = askedRadarLabels,
         )
-        QuestionsScreen.MATCHING -> MatchingSubmenu(
+        else -> ComingSoon(screen.displayName)
+    }
+}
+
+/** Matching navigation: sub-category list -> question list -> the answer UI. */
+@Composable
+private fun MatchingNav(
+    category: MatchCategory?,
+    question: MatchQuestion?,
+    nearestLineName: String?,
+    matchingEnabled: Boolean,
+    onSelectCategory: (MatchCategory) -> Unit,
+    onSelectQuestion: (MatchQuestion) -> Unit,
+    onMatchingAnswer: (same: Boolean) -> Unit,
+) {
+    when {
+        question == MatchQuestion.TRAIN_LINE -> MatchingSubmenu(
             nearestLineName = nearestLineName,
             enabled = matchingEnabled,
             onAnswer = onMatchingAnswer,
         )
-        else -> Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(180.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = "${screen.displayName} options coming soon.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
+        category == MatchCategory.TRANSIT -> ButtonColumn(
+            labels = MatchQuestion.entries.map { it.displayName },
+            onSelect = { index -> onSelectQuestion(MatchQuestion.entries[index]) },
+        )
+        category != null -> ComingSoon(category.displayName)
+        else -> ButtonColumn(
+            labels = MatchCategory.entries.map { it.displayName },
+            onSelect = { index -> onSelectCategory(MatchCategory.entries[index]) },
+        )
+    }
+}
+
+/** A vertical list of full-width buttons; reports the tapped item's index. */
+@Composable
+private fun ButtonColumn(labels: List<String>, onSelect: (Int) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        labels.forEachIndexed { index, label ->
+            Button(
+                onClick = { onSelect(index) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(label)
+            }
         }
+    }
+}
+
+@Composable
+private fun ComingSoon(name: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(180.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "$name options coming soon.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 
