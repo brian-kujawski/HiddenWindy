@@ -59,3 +59,28 @@ data class DirectionalEliminator(
     override fun outRegions(context: GameContext): List<Polygon> =
         listOfNotNull(ZoneGeometry.directionalOutPolygon(origin, direction, context.bounds))
 }
+
+/**
+ * Eliminates based on the Matching question "is your nearest line the same as mine?".
+ *
+ * [regions] are the precomputed nearest-line polygons for [lineName]. When the hider's nearest line
+ * is the SAME ([same] = true) everything outside those regions is out of play; when DIFFERENT the
+ * regions themselves are out of play.
+ */
+data class LineMatchEliminator(
+    override val id: String,
+    val lineName: String,
+    val regions: List<Polygon>,
+    val same: Boolean,
+) : Eliminator {
+
+    override val label: String =
+        if (same) "Same line as $lineName" else "Not near $lineName"
+
+    override fun outRegions(context: GameContext): List<Polygon> =
+        if (same) {
+            listOfNotNull(ZoneGeometry.invertedMask(regions, context.bounds))
+        } else {
+            regions
+        }
+}

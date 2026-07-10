@@ -20,3 +20,8 @@ captures/
 
 # OS
 .DS_Store
+
+# Python tooling
+tools/.venv
+__pycache__/
+*.pyc

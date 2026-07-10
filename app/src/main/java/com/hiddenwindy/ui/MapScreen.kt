@@ -113,6 +113,13 @@ fun MapScreen(
                     showQuestionsModal = false
                     questionsStartOnRadar = false
                 },
+                nearestLineName = viewModel.nearestLineToMe(),
+                matchingEnabled = state.effectiveLocation != null,
+                onMatchingAnswer = { same ->
+                    viewModel.askMatching(same)
+                    showQuestionsModal = false
+                    questionsStartOnRadar = false
+                },
                 onDismiss = {
                     showQuestionsModal = false
                     questionsStartOnRadar = false

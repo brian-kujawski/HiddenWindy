@@ -55,6 +55,19 @@ object ZoneGeometry {
     }
 
     /**
+     * Builds an inverted mask from arbitrary [regions]: a [bounds]-sized rectangle with each
+     * region's outer ring punched out as a hole. Rendered as a fill this shades everything OUTSIDE
+     * the regions. Returns null when [regions] is empty.
+     */
+    fun invertedMask(regions: List<Polygon>, bounds: CityBounds = CHICAGO_BOUNDS): Polygon? {
+        if (regions.isEmpty()) return null
+        val outer = rectangle(bounds.west, bounds.south, bounds.east, bounds.north)
+            .map { Point.fromLngLat(it[0], it[1]) }
+        val holes = regions.mapNotNull { it.coordinates().firstOrNull() }
+        return Polygon.fromLngLats(listOf(outer) + holes)
+    }
+
+    /**
      * Returns the "out of play" rectangle on the [direction] side of [origin], clipped to [bounds].
      * Returns null when the origin already sits outside the bounds on that axis (nothing to shade).
      */

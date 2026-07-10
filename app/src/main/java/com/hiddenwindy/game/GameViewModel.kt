@@ -9,6 +9,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.hiddenwindy.data.LineRegionsRepository
 import com.hiddenwindy.data.Station
 import com.hiddenwindy.data.TransitRepository
 import kotlinx.coroutines.Dispatchers
@@ -20,14 +21,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
+import org.maplibre.geojson.Polygon
 
 /** Holds the game state and the actions that mutate it. */
 class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = TransitRepository(application)
+    private val lineRegionsRepository = LineRegionsRepository(application)
     private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(application)
     private var timerJob: Job? = null
+
+    private var lineRegions: Map<String, List<Polygon>> = emptyMap()
+    private var linesByName: Map<String, List<LineString>> = emptyMap()
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -46,9 +53,36 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val stations = withContext(Dispatchers.IO) { repository.loadStations() }
             _state.update { it.copy(stations = stations) }
         }
+        viewModelScope.launch {
+            lineRegions = withContext(Dispatchers.IO) { lineRegionsRepository.loadRegions() }
+            linesByName = withContext(Dispatchers.IO) { lineRegionsRepository.loadLinesByName() }
+        }
     }
 
     fun raw(): TransitRepository = repository
+
+    /** The line nearest to the current (real or debug) location, or null if unknown. */
+    fun nearestLineToMe(): String? {
+        val loc = _state.value.effectiveLocation ?: return null
+        if (linesByName.isEmpty()) return null
+        return lineRegionsRepository.nearestLineName(loc, linesByName)
+    }
+
+    /**
+     * Answers the Matching question for the line nearest to my location. [same] = true shades
+     * everything outside that line's region; false shades the region itself.
+     */
+    fun askMatching(same: Boolean) {
+        val name = nearestLineToMe() ?: return
+        val regions = lineRegions[name] ?: return
+        val eliminator = LineMatchEliminator(
+            id = "match-${eliminatorCounter++}",
+            lineName = name,
+            regions = regions,
+            same = same,
+        )
+        _state.update { it.copy(eliminators = it.eliminators + eliminator) }
+    }
 
     fun selectStation(station: Station?) {
         _state.update { it.copy(selectedStation = station) }

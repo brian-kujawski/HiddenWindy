@@ -57,6 +57,9 @@ fun QuestionsModal(
     onDismiss: () -> Unit,
     startOnRadar: Boolean = false,
     onRadarRadiusSelected: (label: String, radiusMiles: Double) -> Unit = { _, _ -> },
+    nearestLineName: String? = null,
+    matchingEnabled: Boolean = false,
+    onMatchingAnswer: (same: Boolean) -> Unit = {},
 ) {
     var screen by remember { mutableStateOf(if (startOnRadar) QuestionsScreen.RADAR else QuestionsScreen.HOME) }
 
@@ -99,7 +102,13 @@ fun QuestionsModal(
                 if (screen == QuestionsScreen.HOME) {
                     QuestionsGrid(onSelect = { screen = it })
                 } else {
-                    QuestionsSubmenu(screen = screen, onRadarRadiusSelected = onRadarRadiusSelected)
+                    QuestionsSubmenu(
+                        screen = screen,
+                        onRadarRadiusSelected = onRadarRadiusSelected,
+                        nearestLineName = nearestLineName,
+                        matchingEnabled = matchingEnabled,
+                        onMatchingAnswer = onMatchingAnswer,
+                    )
                 }
             }
         }
@@ -141,9 +150,17 @@ private fun QuestionsGrid(onSelect: (QuestionsScreen) -> Unit) {
 private fun QuestionsSubmenu(
     screen: QuestionsScreen,
     onRadarRadiusSelected: (label: String, radiusMiles: Double) -> Unit,
+    nearestLineName: String?,
+    matchingEnabled: Boolean,
+    onMatchingAnswer: (same: Boolean) -> Unit,
 ) {
     when (screen) {
         QuestionsScreen.RADAR -> RadarSubmenu(onRadiusSelected = onRadarRadiusSelected)
+        QuestionsScreen.MATCHING -> MatchingSubmenu(
+            nearestLineName = nearestLineName,
+            enabled = matchingEnabled,
+            onAnswer = onMatchingAnswer,
+        )
         else -> Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -154,6 +171,58 @@ private fun QuestionsSubmenu(
                 text = "${screen.displayName} options coming soon.",
                 style = MaterialTheme.typography.bodyMedium,
             )
+        }
+    }
+}
+
+@Composable
+private fun MatchingSubmenu(
+    nearestLineName: String?,
+    enabled: Boolean,
+    onAnswer: (same: Boolean) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                Text(
+                    text = "Your nearest line",
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Text(
+                    text = nearestLineName ?: if (enabled) "None nearby" else "Locating…",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+        }
+
+        HorizontalDivider()
+
+        Text(
+            text = "Is the hider's nearest line the same as yours?",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Button(
+                onClick = { onAnswer(true) },
+                enabled = enabled && nearestLineName != null,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text("Same")
+            }
+            Button(
+                onClick = { onAnswer(false) },
+                enabled = enabled && nearestLineName != null,
+                modifier = Modifier.weight(1f),
+            ) {
+                Text("Different")
+            }
         }
     }
 }
