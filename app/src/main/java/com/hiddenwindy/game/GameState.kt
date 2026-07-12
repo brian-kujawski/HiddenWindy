@@ -41,6 +41,23 @@ data class ThermometerActive(
     val distanceMiles: Double,
     val start: Point,
     val finish: Point? = null,
+    /** Straight-line miles from start to finish, set when the journey ends. */
+    val finishedMiles: Double? = null,
+    val timerStarted: Boolean = false,
+    val remainingSeconds: Int = 5 * 60,
+    /** Monotonic ID so the copy panel knows when a brand-new finish has occurred. */
+    val finishedAt: Long = 0L,
+)
+
+/** A Matching question that has been cast and is awaiting the hider's reply. */
+data class MatchingConfirmed(
+    val dataset: String,
+    val featureLabel: String,
+    val seekerNearestName: String,
+    val timerStarted: Boolean = false,
+    val remainingSeconds: Int = 5 * 60,
+    /** Monotonic ID so the copy panel knows when a brand-new confirmation has started. */
+    val confirmedAt: Long = System.currentTimeMillis(),
 )
 
 /** Stable keys for each top-level question, matching the Questions menu items. */
@@ -76,6 +93,7 @@ data class GameState(
     val radarResults: List<RadarResult> = emptyList(),
     val thermometerPending: ThermometerPending? = null,
     val thermometerActive: ThermometerActive? = null,
+    val matchingConfirmed: MatchingConfirmed? = null,
     val askedQuestions: List<AskedQuestion> = emptyList(),
 ) {
     /** Centers of every clear (in-play) circle: the locked zone plus the active station's zone. */

@@ -157,7 +157,7 @@ fun QuestionsModal(
     onRadarRadiusSelected: (label: String, radiusMiles: Double) -> Unit = { _, _ -> },
     nearestFeatureName: (dataset: String) -> String? = { null },
     matchingEnabled: Boolean = false,
-    onMatchingAnswer: (dataset: String, same: Boolean) -> Unit = { _, _ -> },
+    onMatchingConfirm: (dataset: String, featureLabel: String, seekerNearestName: String) -> Unit = { _, _, _ -> },
     onThermometerSelected: (label: String, distanceMiles: Double) -> Unit = { _, _ -> },
     askedCategories: Set<String> = emptySet(),
     askedRadarLabels: Set<String> = emptySet(),
@@ -243,7 +243,7 @@ fun QuestionsModal(
                         askedMatchingDetails = askedMatchingDetails,
                         onSelectCategory = { matchCategory = it },
                         onSelectQuestion = { matchQuestion = it },
-                        onMatchingAnswer = onMatchingAnswer,
+                        onMatchingConfirm = onMatchingConfirm,
                     )
                 } else if (screen == QuestionsScreen.MEASURING) {
                     MeasuringNav(
@@ -344,7 +344,7 @@ private fun MatchingNav(
     askedMatchingDetails: Set<String>,
     onSelectCategory: (MatchCategory) -> Unit,
     onSelectQuestion: (MatchQuestion) -> Unit,
-    onMatchingAnswer: (dataset: String, same: Boolean) -> Unit,
+    onMatchingConfirm: (dataset: String, featureLabel: String, seekerNearestName: String) -> Unit,
 ) {
     when {
         // Any question with a built dataset uses the generic feature-matching submenu.
@@ -352,7 +352,7 @@ private fun MatchingNav(
             featureLabel = question.displayName,
             nearestFeatureName = nearestFeatureName(question.dataset),
             enabled = matchingEnabled,
-            onAnswer = { same -> onMatchingAnswer(question.dataset, same) },
+            onConfirm = { nearestName -> onMatchingConfirm(question.dataset, question.displayName, nearestName) },
         )
         question != null -> ComingSoon(question.displayName)
         category != null -> {
@@ -371,15 +371,35 @@ private fun MatchingNav(
             }
         }
         else -> {
-            val disabledCategories = MatchCategory.entries.mapIndexedNotNull { index, cat ->
-                val answerable = MatchQuestion.entries.filter { it.category == cat && it.dataset != null }
-                if (answerable.isNotEmpty() && answerable.all { it.displayName in askedMatchingDetails }) index else null
-            }.toSet()
-            ButtonColumn(
-                labels = MatchCategory.entries.map { it.displayName },
-                disabledIndices = disabledCategories,
-                onSelect = { index -> onSelectCategory(MatchCategory.entries[index]) },
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                        Text(text = "COST: Draw 3, Pick 1", style = MaterialTheme.typography.labelLarge)
+                        Text(text = "TIME: 5 Minutes", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+
+                HorizontalDivider()
+
+                Text(
+                    text = "Is your nearest ___ the same as my nearest ___?",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+
+                val disabledCategories = MatchCategory.entries.mapIndexedNotNull { index, cat ->
+                    val answerable = MatchQuestion.entries.filter { it.category == cat && it.dataset != null }
+                    if (answerable.isNotEmpty() && answerable.all { it.displayName in askedMatchingDetails }) index else null
+                }.toSet()
+                ButtonColumn(
+                    labels = MatchCategory.entries.map { it.displayName },
+                    disabledIndices = disabledCategories,
+                    onSelect = { index -> onSelectCategory(MatchCategory.entries[index]) },
+                )
+            }
         }
     }
 }
@@ -453,9 +473,10 @@ private fun FeatureMatchingSubmenu(
     featureLabel: String,
     nearestFeatureName: String?,
     enabled: Boolean,
-    onAnswer: (same: Boolean) -> Unit,
+    onConfirm: (nearestName: String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Seeker's nearest feature
         Surface(
             shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surfaceVariant,
@@ -473,30 +494,12 @@ private fun FeatureMatchingSubmenu(
             }
         }
 
-        HorizontalDivider()
-
-        Text(
-            text = "Is the hider's nearest $featureLabel the same as yours?",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Row(
+        Button(
+            onClick = { nearestFeatureName?.let { onConfirm(it) } },
+            enabled = enabled && nearestFeatureName != null,
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Button(
-                onClick = { onAnswer(true) },
-                enabled = enabled && nearestFeatureName != null,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text("Same")
-            }
-            Button(
-                onClick = { onAnswer(false) },
-                enabled = enabled && nearestFeatureName != null,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text("Different")
-            }
+            Text("Ask")
         }
     }
 }

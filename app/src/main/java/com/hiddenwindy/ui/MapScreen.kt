@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -34,7 +35,9 @@ import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -43,6 +46,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.hiddenwindy.game.GameState
+import com.hiddenwindy.game.ThermometerActive
 import com.hiddenwindy.game.GameViewModel
 import com.hiddenwindy.map.MapViewContainer
 
@@ -138,11 +142,8 @@ fun MapScreen(
                     .filter { it.category == com.hiddenwindy.game.QuestionCategory.MATCHING }
                     .map { it.detail }
                     .toSet(),
-                onMatchingAnswer = { dataset, same ->
-                    when (dataset) {
-                        "line_regions" -> viewModel.askMatching(same)
-                        "transit_airport" -> viewModel.askAirportMatching(same)
-                    }
+                onMatchingConfirm = { dataset, featureLabel, seekerNearestName ->
+                    viewModel.confirmMatching(dataset, featureLabel, seekerNearestName)
                     showQuestionsModal = false
                     questionsStartOnRadar = false
                 },
@@ -195,6 +196,18 @@ fun MapScreen(
             )
         }
 
+        state.matchingConfirmed?.let { confirmed ->
+            MatchingConfirmPanel(
+                confirmed = confirmed,
+                onStartTimer = viewModel::startMatchingTimer,
+                onResolve = { same -> viewModel.resolveMatching(same) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(12.dp),
+            )
+        }
+
         state.thermometerPending?.let { pending ->
             ThermometerStartPanel(
                 label = pending.label,
@@ -214,8 +227,8 @@ fun MapScreen(
 
         state.thermometerActive?.let { active ->
             if (active.finish == null) {
-                ThermometerTravelPanel(
-                    label = active.label,
+                ThermometerTravelWithCopyPanel(
+                    active = active,
                     traveledMiles = state.thermometerTraveledMiles ?: 0.0,
                     thresholdReached = state.thermometerThresholdReached,
                     onFinish = { viewModel.finishThermometer() },
@@ -226,9 +239,10 @@ fun MapScreen(
                         .padding(12.dp),
                 )
             } else {
-                ThermometerResolvePanel(
+                ThermometerConfirmPanel(
+                    active = active,
+                    onStartTimer = viewModel::startThermometerTimer,
                     onResolve = { hotter -> viewModel.resolveThermometer(hotter) },
-                    onCancel = { viewModel.cancelThermometer() },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
@@ -258,7 +272,7 @@ fun MapScreen(
             }
         }
 
-        if (state.radarConfirmed == null && state.thermometerPending == null && state.thermometerActive == null) {
+        if (state.radarConfirmed == null && state.thermometerPending == null && state.thermometerActive == null && state.matchingConfirmed == null) {
             ControlPanel(
                 state = state,
                 onToggleHidingZone = viewModel::toggleHidingZone,
@@ -585,43 +599,58 @@ private fun ThermometerTravelPanel(
 }
 
 @Composable
-private fun ThermometerResolvePanel(
-    onResolve: (hotter: Boolean) -> Unit,
+private fun ThermometerTravelWithCopyPanel(
+    active: ThermometerActive,
+    traveledMiles: Double,
+    thresholdReached: Boolean,
+    onFinish: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(
-                text = "Is the hider hotter or colder than when you started?",
-                fontWeight = FontWeight.Medium,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Button(
-                    onClick = { onResolve(true) },
-                    modifier = Modifier.weight(1f),
+    val clipboardManager = LocalClipboardManager.current
+    var startCopyVisible by remember(active.start) { mutableStateOf(true) }
+
+    val lat = active.start.latitude()
+    val lon = active.start.longitude()
+    val startCopyText = "Starting a thermometer at: ${"%.5f".format(lat)}/${"%.5f".format(lon)}"
+
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (startCopyVisible) {
+            Card {
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text("Hotter")
-                }
-                Button(
-                    onClick = { onResolve(false) },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Colder")
-                }
-                OutlinedButton(
-                    onClick = onCancel,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Cancel")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        Text(
+                            text = startCopyText,
+                            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(onClick = { startCopyVisible = false }) {
+                            Icon(Icons.Default.Close, contentDescription = "Dismiss")
+                        }
+                    }
+                    Button(
+                        onClick = { clipboardManager.setText(AnnotatedString(startCopyText)) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("Copy to Clipboard")
+                    }
                 }
             }
         }
+        ThermometerTravelPanel(
+            label = active.label,
+            traveledMiles = traveledMiles,
+            thresholdReached = thresholdReached,
+            onFinish = onFinish,
+            onCancel = onCancel,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }

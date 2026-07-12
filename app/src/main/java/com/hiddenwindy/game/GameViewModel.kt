@@ -26,6 +26,8 @@ import kotlinx.coroutines.withContext
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 import org.maplibre.geojson.Polygon
+import org.maplibre.turf.TurfConstants
+import org.maplibre.turf.TurfMeasurement
 
 /** Holds the game state and the actions that mutate it. */
 class GameViewModel(application: Application) : AndroidViewModel(application) {
@@ -35,6 +37,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val pointRegionsRepository = PointRegionsRepository(application)
     private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(application)
     private var timerJob: Job? = null
+    private var thermometerTimerJob: Job? = null
+    private var matchingTimerJob: Job? = null
 
     private var lineRegions: Map<String, List<Polygon>> = emptyMap()
     private var linesByName: Map<String, List<LineString>> = emptyMap()
@@ -81,22 +85,61 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
      * Answers the Matching question for the line nearest to my location. [same] = true shades
      * everything outside that line's region; false shades the region itself.
      */
-    fun askMatching(same: Boolean) {
-        val name = nearestLineToMe() ?: return
-        val regions = lineRegions[name] ?: return
-        val eliminator = LineMatchEliminator(
+    fun confirmMatching(dataset: String, featureLabel: String, seekerNearestName: String) {
+        _state.update { state ->
+            state.copy(
+                matchingConfirmed = MatchingConfirmed(
+                    dataset = dataset,
+                    featureLabel = featureLabel,
+                    seekerNearestName = seekerNearestName,
+                )
+            )
+        }
+    }
+
+    /** Starts the 5-minute countdown after the matching question has been sent to the hider. */
+    fun startMatchingTimer() {
+        if (_state.value.matchingConfirmed?.timerStarted == true) return
+        _state.update { state ->
+            state.copy(matchingConfirmed = state.matchingConfirmed?.copy(timerStarted = true))
+        }
+        matchingTimerJob = viewModelScope.launch {
+            while (true) {
+                delay(1_000)
+                val remaining = _state.value.matchingConfirmed?.remainingSeconds ?: break
+                if (remaining <= 0) break
+                _state.update { state ->
+                    state.copy(matchingConfirmed = state.matchingConfirmed?.copy(remainingSeconds = remaining - 1))
+                }
+            }
+        }
+    }
+
+    /** Resolves the Matching question with the hider's reply. */
+    fun resolveMatching(same: Boolean) {
+        val confirmed = _state.value.matchingConfirmed ?: return
+        val name = confirmed.seekerNearestName
+        val regions = when (confirmed.dataset) {
+            "line_regions" -> lineRegions[name]
+            "transit_airport" -> airportRegions[name]
+            else -> null
+        } ?: return
+        matchingTimerJob?.cancel()
+        matchingTimerJob = null
+        val eliminator = PointMatchEliminator(
             id = "match-${eliminatorCounter++}",
-            lineName = name,
+            featureName = name,
             regions = regions,
             same = same,
         )
         val record = AskedQuestion(
             category = QuestionCategory.MATCHING,
             label = "Matching",
-            detail = "Transit Line",
+            detail = confirmed.featureLabel,
         )
         _state.update {
             it.copy(
+                matchingConfirmed = null,
                 eliminators = it.eliminators + eliminator,
                 askedQuestions = it.askedQuestions + record,
             )
@@ -108,29 +151,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val loc = _state.value.effectiveLocation ?: return null
         if (airportPoints.isEmpty()) return null
         return pointRegionsRepository.nearestName(loc, airportPoints)
-    }
-
-    /** Answers the Airport Matching question. [same] = true shades everything outside the seeker's nearest airport's region. */
-    fun askAirportMatching(same: Boolean) {
-        val name = nearestAirportToMe() ?: return
-        val regions = airportRegions[name] ?: return
-        val eliminator = PointMatchEliminator(
-            id = "match-${eliminatorCounter++}",
-            featureName = name,
-            regions = regions,
-            same = same,
-        )
-        val record = AskedQuestion(
-            category = QuestionCategory.MATCHING,
-            label = "Matching",
-            detail = "Airport",
-        )
-        _state.update {
-            it.copy(
-                eliminators = it.eliminators + eliminator,
-                askedQuestions = it.askedQuestions + record,
-            )
-        }
     }
 
     fun selectStation(station: Station?) {
@@ -188,6 +208,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun resetGame() {
         timerJob?.cancel()
         timerJob = null
+        thermometerTimerJob?.cancel()
+        thermometerTimerJob = null
+        matchingTimerJob?.cancel()
+        matchingTimerJob = null
         _state.update { GameState(stations = it.stations, myLocation = it.myLocation) }
     }
 
@@ -259,12 +283,41 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val active = _state.value.thermometerActive ?: return
         if (active.finish != null) return
         val finish = _state.value.effectiveLocation ?: return
-        _state.update { it.copy(thermometerActive = active.copy(finish = finish)) }
+        val traveledMiles = TurfMeasurement.distance(active.start, finish, TurfConstants.UNIT_MILES)
+        _state.update {
+            it.copy(
+                thermometerActive = active.copy(
+                    finish = finish,
+                    finishedMiles = traveledMiles,
+                    finishedAt = System.currentTimeMillis(),
+                )
+            )
+        }
     }
 
     /** Cancels any in-progress Thermometer reading. */
     fun cancelThermometer() {
+        thermometerTimerJob?.cancel()
+        thermometerTimerJob = null
         _state.update { it.copy(thermometerPending = null, thermometerActive = null) }
+    }
+
+    /** Starts the 5-minute countdown after the finish message has been sent to the hider. */
+    fun startThermometerTimer() {
+        if (_state.value.thermometerActive?.timerStarted == true) return
+        _state.update { state ->
+            state.copy(thermometerActive = state.thermometerActive?.copy(timerStarted = true))
+        }
+        thermometerTimerJob = viewModelScope.launch {
+            while (true) {
+                delay(1_000)
+                val remaining = _state.value.thermometerActive?.remainingSeconds ?: break
+                if (remaining <= 0) break
+                _state.update { state ->
+                    state.copy(thermometerActive = state.thermometerActive?.copy(remainingSeconds = remaining - 1))
+                }
+            }
+        }
     }
 
     /**
