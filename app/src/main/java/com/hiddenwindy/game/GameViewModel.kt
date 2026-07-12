@@ -10,6 +10,8 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.hiddenwindy.data.LineRegionsRepository
+import com.hiddenwindy.data.NamedPoint
+import com.hiddenwindy.data.PointRegionsRepository
 import com.hiddenwindy.data.Station
 import com.hiddenwindy.data.TransitRepository
 import kotlinx.coroutines.Dispatchers
@@ -30,11 +32,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = TransitRepository(application)
     private val lineRegionsRepository = LineRegionsRepository(application)
+    private val pointRegionsRepository = PointRegionsRepository(application)
     private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(application)
     private var timerJob: Job? = null
 
     private var lineRegions: Map<String, List<Polygon>> = emptyMap()
     private var linesByName: Map<String, List<LineString>> = emptyMap()
+    private var airportRegions: Map<String, List<Polygon>> = emptyMap()
+    private var airportPoints: List<NamedPoint> = emptyList()
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -56,6 +61,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             lineRegions = withContext(Dispatchers.IO) { lineRegionsRepository.loadRegions() }
             linesByName = withContext(Dispatchers.IO) { lineRegionsRepository.loadLinesByName() }
+        }
+        viewModelScope.launch {
+            airportRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("transit_airport") }
+            airportPoints = withContext(Dispatchers.IO) { pointRegionsRepository.loadNamedPoints("transit_airport") }
         }
     }
 
@@ -85,6 +94,36 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             category = QuestionCategory.MATCHING,
             label = "Matching",
             detail = "Transit Line",
+        )
+        _state.update {
+            it.copy(
+                eliminators = it.eliminators + eliminator,
+                askedQuestions = it.askedQuestions + record,
+            )
+        }
+    }
+
+    /** Returns the name of the nearest commercial airport to the current location, or null. */
+    fun nearestAirportToMe(): String? {
+        val loc = _state.value.effectiveLocation ?: return null
+        if (airportPoints.isEmpty()) return null
+        return pointRegionsRepository.nearestName(loc, airportPoints)
+    }
+
+    /** Answers the Airport Matching question. [same] = true shades everything outside the seeker's nearest airport's region. */
+    fun askAirportMatching(same: Boolean) {
+        val name = nearestAirportToMe() ?: return
+        val regions = airportRegions[name] ?: return
+        val eliminator = PointMatchEliminator(
+            id = "match-${eliminatorCounter++}",
+            featureName = name,
+            regions = regions,
+            same = same,
+        )
+        val record = AskedQuestion(
+            category = QuestionCategory.MATCHING,
+            label = "Matching",
+            detail = "Airport",
         )
         _state.update {
             it.copy(

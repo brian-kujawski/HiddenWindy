@@ -117,7 +117,13 @@ fun MapScreen(
                     showQuestionsModal = false
                     questionsStartOnRadar = false
                 },
-                nearestLineName = viewModel.nearestLineToMe(),
+                nearestFeatureName = { dataset ->
+                    when (dataset) {
+                        "line_regions" -> viewModel.nearestLineToMe()
+                        "transit_airport" -> viewModel.nearestAirportToMe()
+                        else -> null
+                    }
+                },
                 matchingEnabled = state.effectiveLocation != null,
                 askedCategories = state.askedQuestions.map { it.category }.toSet(),
                 askedRadarLabels = state.askedQuestions
@@ -132,8 +138,11 @@ fun MapScreen(
                     .filter { it.category == com.hiddenwindy.game.QuestionCategory.MATCHING }
                     .map { it.detail }
                     .toSet(),
-                onMatchingAnswer = { same ->
-                    viewModel.askMatching(same)
+                onMatchingAnswer = { dataset, same ->
+                    when (dataset) {
+                        "line_regions" -> viewModel.askMatching(same)
+                        "transit_airport" -> viewModel.askAirportMatching(same)
+                    }
                     showQuestionsModal = false
                     questionsStartOnRadar = false
                 },

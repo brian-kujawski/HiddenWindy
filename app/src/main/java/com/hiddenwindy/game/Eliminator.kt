@@ -86,6 +86,31 @@ data class LineMatchEliminator(
 }
 
 /**
+ * Eliminates based on a "nearest named point" Matching question (e.g. "nearest airport").
+ *
+ * [regions] are the precomputed Voronoi polygons for [featureName] from `PointRegionsRepository`.
+ * When the hider's nearest point is the SAME ([same] = true) everything outside those regions is
+ * out of play; when DIFFERENT the regions themselves are out of play.
+ */
+data class PointMatchEliminator(
+    override val id: String,
+    val featureName: String,
+    val regions: List<Polygon>,
+    val same: Boolean,
+) : Eliminator {
+
+    override val label: String =
+        if (same) "Same as $featureName" else "Not near $featureName"
+
+    override fun outRegions(context: GameContext): List<Polygon> =
+        if (same) {
+            listOfNotNull(ZoneGeometry.invertedMask(regions, context.bounds))
+        } else {
+            regions
+        }
+}
+
+/**
  * Eliminates based on the Thermometer question: we travelled from [start] to [finish] and the hider
  * reported whether they got [hotter] (closer) or colder. Shades the half-plane on the far side of
  * the perpendicular bisector of that path.

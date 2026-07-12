@@ -76,7 +76,7 @@ private enum class MatchQuestion(
     val dataset: String? = null,
 ) {
     // Transit
-    AIRPORT(MatchCategory.TRANSIT, "Airport"),
+    AIRPORT(MatchCategory.TRANSIT, "Airport", dataset = "transit_airport"),
     TRANSIT_LINE(MatchCategory.TRANSIT, "Transit Line", dataset = "line_regions"),
     STATION_NAME_LENGTH(MatchCategory.TRANSIT, "Station's Name Length"),
     STREET_OR_PATH(MatchCategory.TRANSIT, "Street or Path"),
@@ -155,9 +155,9 @@ fun QuestionsModal(
     onDismiss: () -> Unit,
     startOnRadar: Boolean = false,
     onRadarRadiusSelected: (label: String, radiusMiles: Double) -> Unit = { _, _ -> },
-    nearestLineName: String? = null,
+    nearestFeatureName: (dataset: String) -> String? = { null },
     matchingEnabled: Boolean = false,
-    onMatchingAnswer: (same: Boolean) -> Unit = {},
+    onMatchingAnswer: (dataset: String, same: Boolean) -> Unit = { _, _ -> },
     onThermometerSelected: (label: String, distanceMiles: Double) -> Unit = { _, _ -> },
     askedCategories: Set<String> = emptySet(),
     askedRadarLabels: Set<String> = emptySet(),
@@ -238,7 +238,7 @@ fun QuestionsModal(
                     MatchingNav(
                         category = matchCategory,
                         question = matchQuestion,
-                        nearestLineName = nearestLineName,
+                        nearestFeatureName = nearestFeatureName,
                         matchingEnabled = matchingEnabled,
                         askedMatchingDetails = askedMatchingDetails,
                         onSelectCategory = { matchCategory = it },
@@ -339,21 +339,20 @@ private fun QuestionsSubmenu(
 private fun MatchingNav(
     category: MatchCategory?,
     question: MatchQuestion?,
-    nearestLineName: String?,
+    nearestFeatureName: (dataset: String) -> String?,
     matchingEnabled: Boolean,
     askedMatchingDetails: Set<String>,
     onSelectCategory: (MatchCategory) -> Unit,
     onSelectQuestion: (MatchQuestion) -> Unit,
-    onMatchingAnswer: (same: Boolean) -> Unit,
+    onMatchingAnswer: (dataset: String, same: Boolean) -> Unit,
 ) {
     when {
-        // Only questions whose dataset (and matching ViewModel wiring) exists are answerable today.
-        // TODO: generalise MatchingSubmenu + the ViewModel to a "nearest feature" lookup keyed by
-        // question.dataset so any built dataset becomes answerable without new UI.
-        question == MatchQuestion.TRANSIT_LINE -> MatchingSubmenu(
-            nearestLineName = nearestLineName,
+        // Any question with a built dataset uses the generic feature-matching submenu.
+        question != null && question.dataset != null -> FeatureMatchingSubmenu(
+            featureLabel = question.displayName,
+            nearestFeatureName = nearestFeatureName(question.dataset),
             enabled = matchingEnabled,
-            onAnswer = onMatchingAnswer,
+            onAnswer = { same -> onMatchingAnswer(question.dataset, same) },
         )
         question != null -> ComingSoon(question.displayName)
         category != null -> {
@@ -450,8 +449,9 @@ private fun ComingSoon(name: String) {
 }
 
 @Composable
-private fun MatchingSubmenu(
-    nearestLineName: String?,
+private fun FeatureMatchingSubmenu(
+    featureLabel: String,
+    nearestFeatureName: String?,
     enabled: Boolean,
     onAnswer: (same: Boolean) -> Unit,
 ) {
@@ -463,11 +463,11 @@ private fun MatchingSubmenu(
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
                 Text(
-                    text = "Your nearest line",
+                    text = "Your nearest $featureLabel",
                     style = MaterialTheme.typography.labelLarge,
                 )
                 Text(
-                    text = nearestLineName ?: if (enabled) "None nearby" else "Locating…",
+                    text = nearestFeatureName ?: if (enabled) "None nearby" else "Locating…",
                     style = MaterialTheme.typography.titleMedium,
                 )
             }
@@ -476,7 +476,7 @@ private fun MatchingSubmenu(
         HorizontalDivider()
 
         Text(
-            text = "Is the hider's nearest line the same as yours?",
+            text = "Is the hider's nearest $featureLabel the same as yours?",
             style = MaterialTheme.typography.bodyMedium,
         )
         Row(
@@ -485,14 +485,14 @@ private fun MatchingSubmenu(
         ) {
             Button(
                 onClick = { onAnswer(true) },
-                enabled = enabled && nearestLineName != null,
+                enabled = enabled && nearestFeatureName != null,
                 modifier = Modifier.weight(1f),
             ) {
                 Text("Same")
             }
             Button(
                 onClick = { onAnswer(false) },
-                enabled = enabled && nearestLineName != null,
+                enabled = enabled && nearestFeatureName != null,
                 modifier = Modifier.weight(1f),
             ) {
                 Text("Different")
