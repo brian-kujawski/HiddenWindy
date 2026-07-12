@@ -602,6 +602,11 @@ private fun RadarSubmenu(
 
         HorizontalDivider()
 
+        Text(
+            text = "Are you within ___ of me?",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+
         // Radius buttons — 4 columns × 2 rows
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             RADAR_RADII.chunked(4).forEach { rowItems ->
