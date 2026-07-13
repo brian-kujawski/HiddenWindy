@@ -193,3 +193,33 @@ data class MeasuringWaterEliminator(
         }
     }
 }
+
+/**
+ * Eliminates based on the Measuring "Coastline" question: "compared to me, are you closer to or
+ * farther from the coastline?"
+ *
+ * The seeker is [distanceMiles] from the coastline. Buffering the [coastline] polyline by that
+ * distance yields the band within [distanceMiles] of it. If the hider is [closer] everything outside
+ * the band is out; if farther the band itself is out.
+ */
+data class MeasuringCoastlineEliminator(
+    override val id: String,
+    val featureLabel: String,
+    val coastline: List<Point>,
+    val distanceMiles: Double,
+    val closer: Boolean,
+) : Eliminator {
+
+    override val label: String =
+        if (closer) "Closer to $featureLabel" else "Farther from $featureLabel"
+
+    override fun outRegions(context: GameContext): List<Polygon> {
+        val band = PolygonUnion.bufferLineMiles(coastline, distanceMiles, context.bounds.centerLat)
+        if (band.isEmpty()) return emptyList()
+        return if (closer) {
+            listOfNotNull(ZoneGeometry.invertedMask(band, context.bounds))
+        } else {
+            band
+        }
+    }
+}

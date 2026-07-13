@@ -67,6 +67,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var movieTheaterRegions: Map<String, List<Polygon>> = emptyMap()
     private var movieTheaterPoints: List<NamedPoint> = emptyList()
     private var waterRegions: Map<String, List<Polygon>> = emptyMap()
+    private var coastlineLine: org.maplibre.geojson.LineString? = null
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -137,6 +138,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             movieTheaterPoints = withContext(Dispatchers.IO) { pointRegionsRepository.loadNamedPoints("poi-movietheater") }
 
             waterRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("natural_water") }
+
+            coastlineLine = withContext(Dispatchers.IO) { pointRegionsRepository.loadLineString("coastline") }
         }
     }
 
@@ -625,11 +628,21 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         return pointRegionsRepository.nearestPolygonBody(loc, waterRegions)?.first
     }
 
+    /** Display name for the coastline question, or null if location unknown / not yet loaded. */
+    fun nearestCoastlineToMe(): String? {
+        if (_state.value.effectiveLocation == null || coastlineLine == null) return null
+        return "the coastline"
+    }
+
     /** Returns the nearest POI distance in miles for the given dataset, or null if location unknown. */
     fun nearestPointDistanceMiles(dataset: String): Double? {
         val loc = _state.value.effectiveLocation ?: return null
         if (dataset == "natural_water") {
             return pointRegionsRepository.nearestPolygonBody(loc, waterRegions)?.second
+        }
+        if (dataset == "coastline") {
+            val line = coastlineLine ?: return null
+            return pointRegionsRepository.distanceToLineMiles(loc, line)
         }
         val points = datasetPoints(dataset)
         if (points.isEmpty()) return null
@@ -662,6 +675,22 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                         featureLabel = featureLabel,
                         nearestName = nearest.first,
                         distanceMiles = nearest.second,
+                        poiLocations = emptyList(),
+                        dataset = dataset,
+                    )
+                )
+            }
+            return
+        }
+        if (dataset == "coastline") {
+            val line = coastlineLine ?: return
+            val distanceMiles = pointRegionsRepository.distanceToLineMiles(loc, line)
+            _state.update { state ->
+                state.copy(
+                    measuringPOIConfirmed = MeasuringPOIConfirmed(
+                        featureLabel = featureLabel,
+                        nearestName = "the coastline",
+                        distanceMiles = distanceMiles,
                         poiLocations = emptyList(),
                         dataset = dataset,
                     )
@@ -714,6 +743,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 id = "measuring-water-${eliminatorCounter++}",
                 featureLabel = confirmed.featureLabel,
                 waterPolygons = waterRegions.values.flatten(),
+                distanceMiles = confirmed.distanceMiles,
+                closer = closer,
+            )
+        } else if (confirmed.dataset == "coastline") {
+            MeasuringCoastlineEliminator(
+                id = "measuring-coastline-${eliminatorCounter++}",
+                featureLabel = confirmed.featureLabel,
+                coastline = coastlineLine?.coordinates() ?: emptyList(),
                 distanceMiles = confirmed.distanceMiles,
                 closer = closer,
             )

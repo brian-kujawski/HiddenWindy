@@ -2,6 +2,7 @@ package com.hiddenwindy.data
 
 import android.content.Context
 import org.maplibre.geojson.FeatureCollection
+import org.maplibre.geojson.LineString
 import org.maplibre.geojson.MultiPolygon
 import org.maplibre.geojson.Point
 import org.maplibre.geojson.Polygon
@@ -97,6 +98,22 @@ class PointRegionsRepository(private val context: Context) {
             if (bestMiles == 0.0) break
         }
         return bestName?.let { it to bestMiles }
+    }
+
+    /** Loads a single LineString feature from `assets/<name>.geojson`, or null when absent/empty. */
+    fun loadLineString(assetName: String): LineString? {
+        val fc = FeatureCollection.fromJson(readAsset("$assetName.geojson"))
+        for (feature in fc.features() ?: emptyList()) {
+            (feature.geometry() as? LineString)?.let { return it }
+        }
+        return null
+    }
+
+    /** Straight-line distance in miles from [location] to the nearest point on [line]. */
+    fun distanceToLineMiles(location: Point, line: LineString): Double {
+        val nearest = TurfMisc.nearestPointOnLine(location, line.coordinates()).geometry() as? Point
+            ?: return Double.MAX_VALUE
+        return TurfMeasurement.distance(location, nearest, TurfConstants.UNIT_MILES)
     }
 
     private fun readAsset(name: String): String =

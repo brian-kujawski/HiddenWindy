@@ -131,7 +131,7 @@ private enum class MeasureQuestion(
 
     // Natural
     BODY_OF_WATER(MeasureCategory.NATURAL, "Body of Water", dataset = "natural_water"),
-    COASTLINE(MeasureCategory.NATURAL, "Coastline"),
+    COASTLINE(MeasureCategory.NATURAL, "Coastline", dataset = "coastline"),
     M_PARK(MeasureCategory.NATURAL, "Park"),
 
     // POI

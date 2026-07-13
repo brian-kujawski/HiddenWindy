@@ -57,6 +57,27 @@ object PolygonUnion {
         return fromJts(backProjected)
     }
 
+    /**
+     * Buffers a polyline (given as its ordered [points]) outward by [miles] on both sides, returning
+     * the resulting band as MapLibre polygons. Used by distance-from-a-line questions (e.g. the
+     * coastline). Buffering happens in the same local metre frame as [bufferMiles].
+     */
+    fun bufferLineMiles(points: List<Point>, miles: Double, centerLat: Double): List<MlPolygon> {
+        if (points.size < 2 || miles <= 0.0) return emptyList()
+        val mPerDegLat = 110_540.0
+        val mPerDegLon = 111_320.0 * cos(Math.toRadians(centerLat))
+
+        val coords = points
+            .map { Coordinate(it.longitude() * mPerDegLon, it.latitude() * mPerDegLat) }
+            .toTypedArray()
+        val line = factory.createLineString(coords)
+        val buffered = line.buffer(miles * 1609.344)
+
+        fun unproject(c: Coordinate) = Coordinate(c.x / mPerDegLon, c.y / mPerDegLat)
+        val backProjected = transformGeometry(buffered, ::unproject)
+        return fromJts(backProjected)
+    }
+
     /** Applies [fn] to every coordinate of [geometry], returning a new geometry. */
     private fun transformGeometry(geometry: Geometry, fn: (Coordinate) -> Coordinate): Geometry {
         val copy = geometry.copy()

@@ -155,6 +155,7 @@ fun MapScreen(
                         "utilities-library" -> viewModel.nearestLibraryToMe()
                         "poi-movietheater" -> viewModel.nearestMovieTheaterToMe()
                         "natural_water" -> viewModel.nearestWaterBodyToMe()
+                        "coastline" -> viewModel.nearestCoastlineToMe()
                         else -> null
                     }
                 },
