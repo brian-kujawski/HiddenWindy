@@ -224,8 +224,9 @@ fun MapScreen(
             RadarPanel(
                 label = pending.label,
                 confirmEnabled = state.effectiveLocation != null,
+                adjusting = state.adjustingLocation,
                 onConfirm = { viewModel.confirmRadar() },
-                onAdjust = { /* TODO */ },
+                onAdjust = { viewModel.toggleAdjusting() },
                 onCancel = {
                     viewModel.clearRadarPending()
                     questionsStartOnRadar = true
@@ -546,6 +547,7 @@ private fun ControlPanel(
 private fun RadarPanel(
     label: String,
     confirmEnabled: Boolean,
+    adjusting: Boolean,
     onConfirm: () -> Unit,
     onAdjust: () -> Unit,
     onCancel: () -> Unit,
@@ -560,28 +562,52 @@ private fun RadarPanel(
                 text = "Radar: $label mile radius",
                 fontWeight = FontWeight.Medium,
             )
+            if (adjusting) {
+                Text(
+                    text = "Drag the target to correct your location, then tap Done.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Button(
-                    onClick = onConfirm,
-                    enabled = confirmEnabled,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Confirm")
-                }
-                OutlinedButton(
-                    onClick = onAdjust,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Adjust")
-                }
-                OutlinedButton(
-                    onClick = onCancel,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Cancel")
+                if (adjusting) {
+                    // Done applies the dragged position and casts the question; Cancel
+                    // backs out of the adjustment. Confirm is hidden to avoid confusion.
+                    Button(
+                        onClick = onConfirm,
+                        enabled = confirmEnabled,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("Done")
+                    }
+                    OutlinedButton(
+                        onClick = onAdjust,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("Cancel")
+                    }
+                } else {
+                    Button(
+                        onClick = onConfirm,
+                        enabled = confirmEnabled,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("Confirm")
+                    }
+                    OutlinedButton(
+                        onClick = onAdjust,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("Adjust")
+                    }
+                    OutlinedButton(
+                        onClick = onCancel,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("Cancel")
+                    }
                 }
             }
         }

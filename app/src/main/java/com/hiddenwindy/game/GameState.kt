@@ -2,6 +2,7 @@ package com.hiddenwindy.game
 
 import com.hiddenwindy.data.NamedPoint
 import com.hiddenwindy.data.Station
+import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 import org.maplibre.geojson.Polygon
 import org.maplibre.turf.TurfConstants
@@ -123,6 +124,10 @@ data class GameState(
     val measuringPOIConfirmed: MeasuringPOIConfirmed? = null,
     val askedQuestions: List<AskedQuestion> = emptyList(),
     val activePOILayer: POILayerState? = null,
+    /** True while the draggable Adjust target is active (drift correction mode). */
+    val adjustingLocation: Boolean = false,
+    /** Manually placed question origin from the Adjust target, or null to use GPS. */
+    val adjustedLocation: Point? = null,
 ) {
     /** Centers of every clear (in-play) circle: the locked zone plus the active station's zone. */
     val clearZoneCenters: List<Point>
@@ -142,6 +147,23 @@ data class GameState(
     /** The location shown on the map: debug override if active, otherwise real GPS. */
     val effectiveLocation: Point?
         get() = debugLocation ?: myLocation
+
+    /** Origin used for the pending question: the Adjust override if set, else GPS. */
+    val questionOrigin: Point?
+        get() = adjustedLocation ?: effectiveLocation
+
+    /** The draggable Adjust target position, or null when not adjusting. */
+    val adjustTargetPoint: Point?
+        get() = if (adjustingLocation) adjustedLocation else null
+
+    /** Dashed connector from the GPS icon to the Adjust target, or null when not adjusting. */
+    val adjustLine: LineString?
+        get() {
+            if (!adjustingLocation) return null
+            val gps = effectiveLocation ?: return null
+            val target = adjustedLocation ?: return null
+            return LineString.fromLngLats(listOf(gps, target))
+        }
 
     /** Straight-line miles travelled since the active Thermometer reading began, or null. */
     val thermometerTraveledMiles: Double?
@@ -164,7 +186,7 @@ data class GameState(
     val radarPreviewCircle: Polygon?
         get() {
             val pending = radarPending ?: return null
-            val loc = effectiveLocation ?: return null
+            val loc = questionOrigin ?: return null
             return ZoneGeometry.hidingZoneCircle(loc, pending.radiusMiles)
         }
 

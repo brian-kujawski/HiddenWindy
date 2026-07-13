@@ -1,6 +1,8 @@
 package com.hiddenwindy.map
 
+import android.graphics.PointF
 import android.graphics.RectF
+import android.view.MotionEvent
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -33,6 +35,9 @@ import kotlin.coroutines.resume
  * near the visible dot to select it. Hit-testing is done in screen space, so it works at any zoom.
  */
 private const val STATION_TOUCH_PADDING_DP = 6f
+
+/** Grab radius (dp) around the Adjust target marker so it is easy to pick up and drag. */
+private const val ADJUST_GRAB_PADDING_DP = 24f
 
 /**
  * Hosts the MapLibre [MapView] inside Compose. Loads the MapTiler style, wires the transit layers,
@@ -95,6 +100,48 @@ fun MapViewContainer(
                 viewModel.setReferencePoint(point)
             }
             true
+        }
+
+        // Drag handling for the Adjust drift target. When adjusting, an ACTION_DOWN that lands on
+        // the target starts a drag that moves the question origin; the ViewModel clamps it to the
+        // allowed drift radius. Returning false otherwise lets the map pan/zoom as usual.
+        var dragging = false
+        mapView.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    if (!viewModel.state.value.adjustingLocation) return@setOnTouchListener false
+                    val padding = mapView.resources.displayMetrics.density * ADJUST_GRAB_PADDING_DP
+                    val rect = RectF(
+                        event.x - padding, event.y - padding,
+                        event.x + padding, event.y + padding,
+                    )
+                    val hit = map.queryRenderedFeatures(
+                        rect,
+                        MapConstants.ADJUST_TARGET_RING_LAYER,
+                        MapConstants.ADJUST_TARGET_DOT_LAYER,
+                    ).isNotEmpty()
+                    if (hit) {
+                        dragging = true
+                        map.uiSettings.isScrollGesturesEnabled = false
+                        true
+                    } else {
+                        false
+                    }
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (!dragging) return@setOnTouchListener false
+                    val latLng = map.projection.fromScreenLocation(PointF(event.x, event.y))
+                    viewModel.setAdjustedLocation(Point.fromLngLat(latLng.longitude, latLng.latitude))
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (!dragging) return@setOnTouchListener false
+                    dragging = false
+                    map.uiSettings.isScrollGesturesEnabled = true
+                    true
+                }
+                else -> false
+            }
         }
     }
 

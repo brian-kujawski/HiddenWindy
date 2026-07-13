@@ -43,6 +43,16 @@ object MapConstants {
     const val POI_MARKERS_CIRCLE_LAYER = "poi-markers-circle-layer"
     const val POI_MARKERS_LABEL_LAYER = "poi-markers-label-layer"
 
+    const val ADJUST_LINE_SOURCE = "adjust-line-source"
+    const val ADJUST_LINE_LAYER = "adjust-line-layer"
+
+    const val ADJUST_TARGET_SOURCE = "adjust-target-source"
+    const val ADJUST_TARGET_RING_LAYER = "adjust-target-ring-layer"
+    const val ADJUST_TARGET_DOT_LAYER = "adjust-target-dot-layer"
+
+    /** Maximum drift correction distance (miles) the Adjust target may be dragged from GPS. */
+    const val ADJUST_MAX_DRIFT_MILES = 0.25
+
     /** Initial map camera — downtown Chicago (41°53'N 87°38'W). */
     const val INITIAL_LAT = 41.8833
     const val INITIAL_LON = -87.6333

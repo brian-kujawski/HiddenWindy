@@ -41,6 +41,8 @@ class MapController {
         style.addSource(GeoJsonSource(MapConstants.RADAR_PREVIEW_SOURCE, empty))
         style.addSource(GeoJsonSource(MapConstants.RADAR_RESULT_SOURCE, empty))
         style.addSource(GeoJsonSource(MapConstants.POI_MARKERS_SOURCE, empty))
+        style.addSource(GeoJsonSource(MapConstants.ADJUST_LINE_SOURCE, empty))
+        style.addSource(GeoJsonSource(MapConstants.ADJUST_TARGET_SOURCE, empty))
 
         // Transit lines (data-driven colour from the "color" property).
         style.addLayer(
@@ -150,6 +152,31 @@ class MapController {
                 PropertyFactory.textHaloWidth(1.5f),
             ).withFilter(Expression.gte(Expression.zoom(), Expression.literal(13)))
         )
+
+        // Adjust drift connector — dashed line from the GPS icon to the target.
+        style.addLayer(
+            LineLayer(MapConstants.ADJUST_LINE_LAYER, MapConstants.ADJUST_LINE_SOURCE).withProperties(
+                PropertyFactory.lineColor("#D32F2F"),
+                PropertyFactory.lineWidth(2.0f),
+                PropertyFactory.lineDasharray(arrayOf(2.0f, 2.0f)),
+            )
+        )
+
+        // Adjust drift target — crosshair ring plus a small centre dot.
+        style.addLayer(
+            CircleLayer(MapConstants.ADJUST_TARGET_RING_LAYER, MapConstants.ADJUST_TARGET_SOURCE).withProperties(
+                PropertyFactory.circleRadius(14.0f),
+                PropertyFactory.circleOpacity(0.0f),
+                PropertyFactory.circleStrokeColor("#D32F2F"),
+                PropertyFactory.circleStrokeWidth(3.0f),
+            )
+        )
+        style.addLayer(
+            CircleLayer(MapConstants.ADJUST_TARGET_DOT_LAYER, MapConstants.ADJUST_TARGET_SOURCE).withProperties(
+                PropertyFactory.circleRadius(3.0f),
+                PropertyFactory.circleColor("#D32F2F"),
+            )
+        )
     }
 
     /** Pushes the current [state] into the overlay sources. No-op before [setup]. */
@@ -203,6 +230,13 @@ class MapController {
         } ?: emptyList()
         source(style, MapConstants.POI_MARKERS_SOURCE)?.setGeoJson(
             FeatureCollection.fromFeatures(poiFeatures)
+        )
+
+        source(style, MapConstants.ADJUST_LINE_SOURCE)?.setGeoJson(
+            state.adjustLine?.let { FeatureCollection.fromFeature(Feature.fromGeometry(it)) } ?: empty
+        )
+        source(style, MapConstants.ADJUST_TARGET_SOURCE)?.setGeoJson(
+            state.adjustTargetPoint?.let { FeatureCollection.fromFeature(Feature.fromGeometry(it)) } ?: empty
         )
     }
 

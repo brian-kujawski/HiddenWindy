@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.hiddenwindy.map.MapConstants
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 import org.maplibre.geojson.Polygon
@@ -433,12 +434,59 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Arms a Radar preview with the given radius. */
     fun setRadarPending(label: String, radiusMiles: Double) {
-        _state.update { it.copy(radarPending = RadarPending(label, radiusMiles)) }
+        _state.update {
+            it.copy(
+                radarPending = RadarPending(label, radiusMiles),
+                adjustingLocation = false,
+                adjustedLocation = null,
+            )
+        }
     }
 
-    /** Clears the pending Radar preview. */
+    /** Clears the pending Radar preview and any drift adjustment. */
     fun clearRadarPending() {
-        _state.update { it.copy(radarPending = null) }
+        _state.update { it.copy(radarPending = null, adjustingLocation = false, adjustedLocation = null) }
+    }
+
+    /**
+     * Toggles the draggable Adjust target. On enter it seeds the target at the
+     * current GPS location so it appears under the crosshair, ready to be dragged.
+     */
+    fun toggleAdjusting() {
+        _state.update { state ->
+            if (state.adjustingLocation) {
+                // Backing out of Adjust discards the drift override entirely.
+                state.copy(adjustingLocation = false, adjustedLocation = null)
+            } else {
+                val seed = state.effectiveLocation ?: return
+                state.copy(adjustingLocation = true, adjustedLocation = seed)
+            }
+        }
+    }
+
+    /**
+     * Moves the Adjust target, clamping it to [MapConstants.ADJUST_MAX_DRIFT_MILES]
+     * from real GPS so it only corrects drift rather than teleporting the origin.
+     */
+    fun setAdjustedLocation(target: Point) {
+        _state.update { state ->
+            if (!state.adjustingLocation) return
+            val gps = state.effectiveLocation ?: return
+            val clamped = clampToDrift(gps, target)
+            state.copy(adjustedLocation = clamped)
+        }
+    }
+
+    private fun clampToDrift(gps: Point, target: Point): Point {
+        val distance = TurfMeasurement.distance(gps, target, TurfConstants.UNIT_MILES)
+        if (distance <= MapConstants.ADJUST_MAX_DRIFT_MILES) return target
+        val bearing = TurfMeasurement.bearing(gps, target)
+        return TurfMeasurement.destination(
+            gps,
+            MapConstants.ADJUST_MAX_DRIFT_MILES,
+            bearing,
+            TurfConstants.UNIT_MILES,
+        )
     }
 
     /** Arms a Thermometer reading with the given target distance. */
@@ -542,7 +590,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
      */
     fun confirmRadar() {
         val pending = _state.value.radarPending ?: return
-        val center = _state.value.effectiveLocation ?: return
+        val center = _state.value.questionOrigin ?: return
         val record = AskedQuestion(
             category = QuestionCategory.RADAR,
             label = "Radar",
@@ -551,6 +599,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _state.update { state ->
             state.copy(
                 radarPending = null,
+                adjustingLocation = false,
+                adjustedLocation = null,
                 radarConfirmed = RadarConfirmed(
                     label = pending.label,
                     radiusMiles = pending.radiusMiles,
