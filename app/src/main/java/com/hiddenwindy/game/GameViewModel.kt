@@ -39,6 +39,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var timerJob: Job? = null
     private var thermometerTimerJob: Job? = null
     private var matchingTimerJob: Job? = null
+    private var measuringPOITimerJob: Job? = null
 
     private var lineRegions: Map<String, List<Polygon>> = emptyMap()
     private var linesByName: Map<String, List<LineString>> = emptyMap()
@@ -375,6 +376,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         thermometerTimerJob = null
         matchingTimerJob?.cancel()
         matchingTimerJob = null
+        measuringPOITimerJob?.cancel()
+        measuringPOITimerJob = null
         _state.update { GameState(stations = it.stations, myLocation = it.myLocation) }
     }
 
@@ -593,6 +596,90 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             fusedLocationClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
         } catch (_: SecurityException) {
             // Permission was revoked between check and call — safe to ignore
+        }
+    }
+
+    /** Returns the nearest POI distance in miles for the given dataset, or null if location unknown. */
+    fun nearestPointDistanceMiles(dataset: String): Double? {
+        val loc = _state.value.effectiveLocation ?: return null
+        val points = datasetPoints(dataset)
+        if (points.isEmpty()) return null
+        return points.minOfOrNull { TurfMeasurement.distance(loc, it.location, TurfConstants.UNIT_MILES) }
+    }
+
+    private fun datasetPoints(dataset: String): List<NamedPoint> = when (dataset) {
+        "poi-amusementparks" -> amusementParkPoints
+        "poi-zoo" -> zooPoints
+        "poi-aquarium" -> aquariumPoints
+        "poi-golfcourse" -> golfCoursePoints
+        "poi-museum" -> museumPoints
+        "poi-movietheater" -> movieTheaterPoints
+        "utilities-hospital" -> hospitalPoints
+        "utilities-library" -> libraryPoints
+        "utilities-consulates" -> consulatePoints
+        else -> emptyList()
+    }
+
+    /** Confirms a Measuring POI question: computes the seeker's nearest POI and stores state. */
+    fun confirmMeasuringPOI(featureLabel: String, dataset: String) {
+        val loc = _state.value.effectiveLocation ?: return
+        val points = datasetPoints(dataset)
+        if (points.isEmpty()) return
+        val nearest = points.minByOrNull { TurfMeasurement.distance(loc, it.location, TurfConstants.UNIT_MILES) } ?: return
+        val distanceMiles = TurfMeasurement.distance(loc, nearest.location, TurfConstants.UNIT_MILES)
+        _state.update { state ->
+            state.copy(
+                measuringPOIConfirmed = MeasuringPOIConfirmed(
+                    featureLabel = featureLabel,
+                    nearestName = nearest.name,
+                    distanceMiles = distanceMiles,
+                    poiLocations = points.map { it.location },
+                )
+            )
+        }
+    }
+
+    /** Starts the 5-minute countdown after the measuring question has been sent to the hider. */
+    fun startMeasuringPOITimer() {
+        if (_state.value.measuringPOIConfirmed?.timerStarted == true) return
+        _state.update { state ->
+            state.copy(measuringPOIConfirmed = state.measuringPOIConfirmed?.copy(timerStarted = true))
+        }
+        measuringPOITimerJob = viewModelScope.launch {
+            while (true) {
+                delay(1_000)
+                val remaining = _state.value.measuringPOIConfirmed?.remainingSeconds ?: break
+                if (remaining <= 0) break
+                _state.update { state ->
+                    state.copy(measuringPOIConfirmed = state.measuringPOIConfirmed?.copy(remainingSeconds = remaining - 1))
+                }
+            }
+        }
+    }
+
+    /** Resolves the Measuring POI question. [closer] = true means the hider is closer to their nearest POI. */
+    fun resolveMeasuringPOI(closer: Boolean) {
+        measuringPOITimerJob?.cancel()
+        measuringPOITimerJob = null
+        val confirmed = _state.value.measuringPOIConfirmed ?: return
+        val eliminator = MeasuringPOIEliminator(
+            id = "measuring-poi-${eliminatorCounter++}",
+            featureLabel = confirmed.featureLabel,
+            poiLocations = confirmed.poiLocations,
+            distanceMiles = confirmed.distanceMiles,
+            closer = closer,
+        )
+        val record = AskedQuestion(
+            category = QuestionCategory.MEASURING,
+            label = "Measuring",
+            detail = confirmed.featureLabel,
+        )
+        _state.update {
+            it.copy(
+                measuringPOIConfirmed = null,
+                eliminators = it.eliminators + eliminator,
+                askedQuestions = it.askedQuestions + record,
+            )
         }
     }
 

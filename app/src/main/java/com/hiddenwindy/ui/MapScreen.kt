@@ -170,9 +170,20 @@ fun MapScreen(
                     .filter { it.category == com.hiddenwindy.game.QuestionCategory.MATCHING }
                     .map { it.detail }
                     .toSet(),
+                askedMeasuringDetails = state.askedQuestions
+                    .filter { it.category == com.hiddenwindy.game.QuestionCategory.MEASURING }
+                    .map { it.detail }
+                    .toSet(),
                 onMatchingConfirm = { dataset, featureLabel, seekerNearestName ->
                     val stationName = if (dataset == "station_name_length") viewModel.nearestStationNameToMe() else null
                     viewModel.confirmMatching(dataset, featureLabel, seekerNearestName, stationName)
+                    showQuestionsModal = false
+                    questionsStartOnRadar = false
+                },
+                measuringEnabled = state.effectiveLocation != null,
+                nearestPointDistanceMiles = { dataset -> viewModel.nearestPointDistanceMiles(dataset) },
+                onMeasuringPOIConfirm = { featureLabel, dataset ->
+                    viewModel.confirmMeasuringPOI(featureLabel, dataset)
                     showQuestionsModal = false
                     questionsStartOnRadar = false
                 },
@@ -230,6 +241,18 @@ fun MapScreen(
                 confirmed = confirmed,
                 onStartTimer = viewModel::startMatchingTimer,
                 onResolve = { same -> viewModel.resolveMatching(same) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(12.dp),
+            )
+        }
+
+        state.measuringPOIConfirmed?.let { confirmed ->
+            MeasuringPOIConfirmPanel(
+                confirmed = confirmed,
+                onStartTimer = viewModel::startMeasuringPOITimer,
+                onResolve = { closer -> viewModel.resolveMeasuringPOI(closer) },
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
@@ -301,7 +324,7 @@ fun MapScreen(
             }
         }
 
-        if (state.radarConfirmed == null && state.thermometerPending == null && state.thermometerActive == null && state.matchingConfirmed == null) {
+        if (state.radarConfirmed == null && state.thermometerPending == null && state.thermometerActive == null && state.matchingConfirmed == null && state.measuringPOIConfirmed == null) {
             ControlPanel(
                 state = state,
                 onToggleHidingZone = viewModel::toggleHidingZone,

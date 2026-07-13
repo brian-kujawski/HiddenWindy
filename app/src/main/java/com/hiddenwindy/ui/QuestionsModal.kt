@@ -132,21 +132,20 @@ private enum class MeasureQuestion(
     // Natural
     BODY_OF_WATER(MeasureCategory.NATURAL, "Body of Water"),
     COASTLINE(MeasureCategory.NATURAL, "Coastline"),
-    MOUNTAIN(MeasureCategory.NATURAL, "Mountain"),
     M_PARK(MeasureCategory.NATURAL, "Park"),
 
     // POI
-    M_AMUSEMENT_PARK(MeasureCategory.POI, "Amusement Park"),
-    M_ZOO(MeasureCategory.POI, "Zoo"),
-    M_AQUARIUM(MeasureCategory.POI, "Aquarium"),
-    M_GOLF_COURSE(MeasureCategory.POI, "Golf Course"),
-    M_MUSEUM(MeasureCategory.POI, "Museum"),
-    M_MOVIE_THEATER(MeasureCategory.POI, "Movie Theater"),
+    M_AMUSEMENT_PARK(MeasureCategory.POI, "Amusement Park", dataset = "poi-amusementparks"),
+    M_ZOO(MeasureCategory.POI, "Zoo", dataset = "poi-zoo"),
+    M_AQUARIUM(MeasureCategory.POI, "Aquarium", dataset = "poi-aquarium"),
+    M_GOLF_COURSE(MeasureCategory.POI, "Golf Course", dataset = "poi-golfcourse"),
+    M_MUSEUM(MeasureCategory.POI, "Museum", dataset = "poi-museum"),
+    M_MOVIE_THEATER(MeasureCategory.POI, "Movie Theater", dataset = "poi-movietheater"),
 
     // Utilities
-    M_HOSPITAL(MeasureCategory.UTILITIES, "Hospital"),
-    M_LIBRARY(MeasureCategory.UTILITIES, "Library"),
-    M_FOREIGN_CONSULATE(MeasureCategory.UTILITIES, "Foreign Consulate"),
+    M_HOSPITAL(MeasureCategory.UTILITIES, "Hospital", dataset = "utilities-hospital"),
+    M_LIBRARY(MeasureCategory.UTILITIES, "Library", dataset = "utilities-library"),
+    M_FOREIGN_CONSULATE(MeasureCategory.UTILITIES, "Foreign Consulate", dataset = "utilities-consulates"),
 }
 
 @Composable
@@ -158,10 +157,14 @@ fun QuestionsModal(
     matchingEnabled: Boolean = false,
     onMatchingConfirm: (dataset: String, featureLabel: String, seekerNearestName: String) -> Unit = { _, _, _ -> },
     onThermometerSelected: (label: String, distanceMiles: Double) -> Unit = { _, _ -> },
+    measuringEnabled: Boolean = false,
+    nearestPointDistanceMiles: (dataset: String) -> Double? = { null },
+    onMeasuringPOIConfirm: (featureLabel: String, dataset: String) -> Unit = { _, _ -> },
     askedCategories: Set<String> = emptySet(),
     askedRadarLabels: Set<String> = emptySet(),
     askedThermometerLabels: Set<String> = emptySet(),
     askedMatchingDetails: Set<String> = emptySet(),
+    askedMeasuringDetails: Set<String> = emptySet(),
 ) {
     var screen by remember { mutableStateOf(if (startOnRadar) QuestionsScreen.RADAR else QuestionsScreen.HOME) }
     var matchCategory by remember { mutableStateOf<MatchCategory?>(null) }
@@ -231,6 +234,7 @@ fun QuestionsModal(
                           askedRadarLabels = askedRadarLabels,
                           askedThermometerLabels = askedThermometerLabels,
                           askedMatchingDetails = askedMatchingDetails,
+                          askedMeasuringDetails = askedMeasuringDetails,
                           onSelect = { screen = it },
                       )
                 } else if (screen == QuestionsScreen.MATCHING) {
@@ -248,8 +252,13 @@ fun QuestionsModal(
                     MeasuringNav(
                         category = measureCategory,
                         question = measureQuestion,
+                        nearestFeatureName = nearestFeatureName,
+                        nearestPointDistanceMiles = nearestPointDistanceMiles,
+                        measuringEnabled = measuringEnabled,
+                        askedMeasuringDetails = askedMeasuringDetails,
                         onSelectCategory = { measureCategory = it },
                         onSelectQuestion = { measureQuestion = it },
+                        onMeasuringPOIConfirm = onMeasuringPOIConfirm,
                     )
                 } else {
                     QuestionsSubmenu(
@@ -271,6 +280,7 @@ private fun QuestionsGrid(
     askedRadarLabels: Set<String>,
     askedThermometerLabels: Set<String>,
     askedMatchingDetails: Set<String>,
+    askedMeasuringDetails: Set<String>,
     onSelect: (QuestionsScreen) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -287,6 +297,8 @@ private fun QuestionsGrid(
                             THERMOMETER_OPTIONS.any { (label, _) -> label !in askedThermometerLabels }
                         QuestionsScreen.MATCHING ->
                             MatchQuestion.entries.any { q -> q.dataset != null && q.displayName !in askedMatchingDetails }
+                        QuestionsScreen.MEASURING ->
+                            MeasureQuestion.entries.any { q -> q.dataset != null && q.displayName !in askedMeasuringDetails }
                         else -> option.name !in askedCategories
                     }
                     Button(
@@ -409,27 +421,64 @@ private fun MatchingNav(
 private fun MeasuringNav(
     category: MeasureCategory?,
     question: MeasureQuestion?,
+    nearestFeatureName: (dataset: String) -> String?,
+    nearestPointDistanceMiles: (dataset: String) -> Double?,
+    measuringEnabled: Boolean,
+    askedMeasuringDetails: Set<String>,
     onSelectCategory: (MeasureCategory) -> Unit,
     onSelectQuestion: (MeasureQuestion) -> Unit,
+    onMeasuringPOIConfirm: (featureLabel: String, dataset: String) -> Unit,
 ) {
     when {
-        // No Measuring question has a dataset yet, so every leaf is a placeholder for now.
+        question != null && question.dataset != null -> FeatureMeasuringSubmenu(
+            featureLabel = question.displayName,
+            nearestName = nearestFeatureName(question.dataset),
+            distanceMiles = nearestPointDistanceMiles(question.dataset),
+            enabled = measuringEnabled,
+            onConfirm = { onMeasuringPOIConfirm(question.displayName, question.dataset) },
+        )
         question != null -> ComingSoon(question.displayName)
         category != null -> {
             val questions = MeasureQuestion.entries.filter { it.category == category }
             if (questions.isEmpty()) {
                 ComingSoon(category.displayName)
             } else {
+                val disabledQuestions = questions.mapIndexedNotNull { index, q ->
+                    if (q.dataset != null && q.displayName in askedMeasuringDetails) index else null
+                }.toSet()
                 ButtonColumn(
                     labels = questions.map { it.displayName },
+                    disabledIndices = disabledQuestions,
                     onSelect = { index -> onSelectQuestion(questions[index]) },
                 )
             }
         }
-        else -> ButtonColumn(
-            labels = MeasureCategory.entries.map { it.displayName },
-            onSelect = { index -> onSelectCategory(MeasureCategory.entries[index]) },
-        )
+        else -> {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                        Text(text = "COST: Draw 3, Pick 1", style = MaterialTheme.typography.labelLarge)
+                        Text(text = "TIME: 5 Minutes", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+
+                HorizontalDivider()
+
+                Text(
+                    text = "Compared to me, are you closer to or further from ___?",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+
+                ButtonColumn(
+                    labels = MeasureCategory.entries.map { it.displayName },
+                    onSelect = { index -> onSelectCategory(MeasureCategory.entries[index]) },
+                )
+            }
+        }
     }
 }
 
@@ -449,6 +498,41 @@ private fun ButtonColumn(
             ) {
                 Text(label)
             }
+        }
+    }
+}
+
+@Composable
+private fun FeatureMeasuringSubmenu(
+    featureLabel: String,
+    nearestName: String?,
+    distanceMiles: Double?,
+    enabled: Boolean,
+    onConfirm: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            val text = when {
+                !enabled -> "Locating\u2026"
+                nearestName == null || distanceMiles == null -> "No $featureLabel found nearby."
+                else -> "My nearest $featureLabel is $nearestName, ${"%.1f".format(distanceMiles)} miles away."
+            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            )
+        }
+        Button(
+            onClick = onConfirm,
+            enabled = enabled && nearestName != null && distanceMiles != null,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Ask")
         }
     }
 }

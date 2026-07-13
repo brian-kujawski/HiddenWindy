@@ -1,6 +1,7 @@
 package com.hiddenwindy.game
 
 import com.hiddenwindy.data.Station
+import com.hiddenwindy.map.PolygonUnion
 import org.maplibre.geojson.Point
 import org.maplibre.geojson.Polygon
 
@@ -126,4 +127,37 @@ data class ThermometerEliminator(
 
     override fun outRegions(context: GameContext): List<Polygon> =
         listOfNotNull(ZoneGeometry.thermometerOutPolygon(start, finish, hotter, context.bounds))
+}
+
+/**
+ * Eliminates based on a Measuring POI question: "compared to me, are you closer to or farther
+ * from a [featureLabel]?"
+ *
+ * The seeker is [distanceMiles] from their nearest POI. If the hider is [closer], they must be
+ * within [distanceMiles] of at least one POI — so anywhere farther than [distanceMiles] from
+ * every POI is out. If they are farther, they must be beyond [distanceMiles] from every POI —
+ * so anywhere within [distanceMiles] of any POI is out.
+ */
+data class MeasuringPOIEliminator(
+    override val id: String,
+    val featureLabel: String,
+    val poiLocations: List<Point>,
+    val distanceMiles: Double,
+    val closer: Boolean,
+) : Eliminator {
+
+    override val label: String = if (closer) "Closer to $featureLabel" else "Farther from $featureLabel"
+
+    override fun outRegions(context: GameContext): List<Polygon> {
+        val circles = poiLocations.map { ZoneGeometry.hidingZoneCircle(it, distanceMiles) }
+        return if (closer) {
+            // Dissolve overlapping circles into a non-overlapping union before punching holes in the
+            // inverted mask. Without this, overlapping hole rings trigger the even-odd fill rule
+            // and shade their intersection instead of leaving it clear.
+            val dissolved = PolygonUnion.dissolve(circles)
+            listOfNotNull(ZoneGeometry.invertedMask(dissolved, context.bounds))
+        } else {
+            circles
+        }
+    }
 }

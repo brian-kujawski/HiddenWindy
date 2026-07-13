@@ -63,9 +63,22 @@ data class MatchingConfirmed(
     val confirmedAt: Long = System.currentTimeMillis(),
 )
 
+/** A Measuring POI question that has been cast and is awaiting the hider's reply. */
+data class MeasuringPOIConfirmed(
+    val featureLabel: String,
+    val nearestName: String,
+    val distanceMiles: Double,
+    /** Locations of every POI of this type; used to compute circle eliminators on resolve. */
+    val poiLocations: List<Point>,
+    val timerStarted: Boolean = false,
+    val remainingSeconds: Int = 5 * 60,
+    val confirmedAt: Long = System.currentTimeMillis(),
+)
+
 /** Stable keys for each top-level question, matching the Questions menu items. */
 object QuestionCategory {
     const val MATCHING = "MATCHING"
+    const val MEASURING = "MEASURING"
     const val RADAR = "RADAR"
     const val THERMOMETER = "THERMOMETER"
 }
@@ -97,6 +110,7 @@ data class GameState(
     val thermometerPending: ThermometerPending? = null,
     val thermometerActive: ThermometerActive? = null,
     val matchingConfirmed: MatchingConfirmed? = null,
+    val measuringPOIConfirmed: MeasuringPOIConfirmed? = null,
     val askedQuestions: List<AskedQuestion> = emptyList(),
 ) {
     /** Centers of every clear (in-play) circle: the locked zone plus the active station's zone. */
