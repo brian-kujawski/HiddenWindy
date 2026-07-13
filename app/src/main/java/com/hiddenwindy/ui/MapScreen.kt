@@ -145,6 +145,7 @@ fun MapScreen(
                         "station_name_length" -> viewModel.nearestStationNameLengthToMe()
                         "poi-amusementparks" -> viewModel.nearestAmusementParkToMe()
                         "poi-zoo" -> viewModel.nearestZooToMe()
+                        "poi-aquarium" -> viewModel.nearestAquariumToMe()
                         else -> null
                     }
                 },
