@@ -122,7 +122,6 @@ private enum class MeasureQuestion(
 ) {
     // Transit
     M_AIRPORT(MeasureCategory.TRANSIT, "Airport"),
-    HIGH_SPEED_TRAIN_LINE(MeasureCategory.TRANSIT, "High Speed Train Line"),
     RAIL_STATION(MeasureCategory.TRANSIT, "Rail Station"),
 
     // Borders
