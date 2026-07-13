@@ -19,6 +19,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -89,6 +90,21 @@ fun MapScreen(
                 .fillMaxWidth()
                 .padding(12.dp),
         )
+
+        Surface(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(12.dp),
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            tonalElevation = 2.dp,
+        ) {
+            Text(
+                text = "${state.stationsInPlay}/${state.stations.size} In Play",
+                style = MaterialTheme.typography.labelLarge,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+        }
 
         if (state.selectedStation == null) {
             HamburgerMenu(

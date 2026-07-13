@@ -4,6 +4,7 @@ import com.hiddenwindy.data.Station
 import org.maplibre.geojson.Point
 import org.maplibre.geojson.Polygon
 import org.maplibre.turf.TurfConstants
+import org.maplibre.turf.TurfJoins
 import org.maplibre.turf.TurfMeasurement
 
 /** The radius the player has selected for a pending Radar cast (label = button text, e.g. "1/4"). */
@@ -180,6 +181,19 @@ data class GameState(
 
     /** Every "out of play" polygon from all sources (rules + radar results); may overlap. */
     fun allOutRegions(): List<Polygon> = outRegions() + radarResultPolygons
+
+    /**
+     * Number of stations whose map point is NOT covered by any current eliminator polygon.
+     * Used for the "X/Y Stations In Play" header display.
+     */
+    val stationsInPlay: Int
+        get() {
+            val outPolygons = allOutRegions()
+            if (outPolygons.isEmpty()) return stations.size
+            return stations.count { station ->
+                outPolygons.none { polygon -> TurfJoins.inside(station.point(), polygon) }
+            }
+        }
 }
 
 /** True when two points refer to the same coordinate (used to de-duplicate locked zones). */

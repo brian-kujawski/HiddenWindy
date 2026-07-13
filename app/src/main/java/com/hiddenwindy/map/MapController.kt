@@ -50,7 +50,19 @@ class MapController {
             )
         )
 
-        // "Out of play" shading.
+        // Stations — added BEFORE the eliminator shading so covered markers are visually darkened
+        // by the semi-transparent fill rather than sitting on top of it.
+        style.addLayer(
+            CircleLayer(MapConstants.STATIONS_LAYER, MapConstants.STATIONS_SOURCE).withProperties(
+                PropertyFactory.circleRadius(4.0f),
+                PropertyFactory.circleColor("#FFFFFF"),
+                PropertyFactory.circleStrokeColor("#37474F"),
+                PropertyFactory.circleStrokeWidth(1.5f),
+            )
+        )
+
+        // "Out of play" shading — rendered above station markers so eliminated stations appear
+        // darkened through the translucent fill.
         style.addLayer(
             FillLayer(MapConstants.ELIMINATOR_FILL_LAYER, MapConstants.ELIMINATOR_SOURCE).withProperties(
                 PropertyFactory.fillColor("#424242"),
@@ -69,16 +81,6 @@ class MapController {
             LineLayer(MapConstants.HIDING_ZONE_LINE_LAYER, MapConstants.HIDING_ZONE_OUTLINE_SOURCE).withProperties(
                 PropertyFactory.lineColor("#1565C0"),
                 PropertyFactory.lineWidth(2.0f),
-            )
-        )
-
-        // Stations.
-        style.addLayer(
-            CircleLayer(MapConstants.STATIONS_LAYER, MapConstants.STATIONS_SOURCE).withProperties(
-                PropertyFactory.circleRadius(4.0f),
-                PropertyFactory.circleColor("#FFFFFF"),
-                PropertyFactory.circleStrokeColor("#37474F"),
-                PropertyFactory.circleStrokeWidth(1.5f),
             )
         )
 
