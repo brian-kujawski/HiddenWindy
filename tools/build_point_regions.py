@@ -135,8 +135,7 @@ def main(csv_path: str) -> None:
 
     simplify_deg = SIMPLIFY_TOL_M / _M_PER_DEG_LAT
     features = []
-    for p in points:
-        polys = cells_by_name[p.name]
+    for name, polys in cells_by_name.items():
         if not polys:
             print(f"  WARNING: no cell for '{p.name}' — skipped")
             continue
@@ -147,10 +146,10 @@ def main(csv_path: str) -> None:
         region_ll = region_ll.simplify(simplify_deg, preserve_topology=True)
         features.append({
             "type": "Feature",
-            "properties": {"name": p.name},
+            "properties": {"name": name},
             "geometry": mapping(region_ll),
         })
-        print(f"  {p.name}: {region_ll.geom_type}, area~{region_ll.area:.4f} deg^2")
+        print(f"  {name}: {region_ll.geom_type}, area~{region_ll.area:.4f} deg^2")
 
     out = {"type": "FeatureCollection", "features": features}
     with open(out_path, "w", encoding="utf-8") as fh:

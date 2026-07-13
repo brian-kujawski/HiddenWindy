@@ -78,14 +78,14 @@ private enum class MatchQuestion(
     // Transit
     AIRPORT(MatchCategory.TRANSIT, "Airport", dataset = "transit_airport"),
     TRANSIT_LINE(MatchCategory.TRANSIT, "Transit Line", dataset = "line_regions"),
-    STATION_NAME_LENGTH(MatchCategory.TRANSIT, "Station's Name Length"),
+    STATION_NAME_LENGTH(MatchCategory.TRANSIT, "Station's Name Length", dataset = "station_name_length"),
     STREET_OR_PATH(MatchCategory.TRANSIT, "Street or Path"),
 
     // Divisions
     MUNICIPALITY(MatchCategory.DIVISIONS, "Municipality"),
 
     // Natural
-    PARK(MatchCategory.NATURAL, "Park"),
+    PARK(MatchCategory.NATURAL, "Park", dataset = "natural_park"),
 
     // POI
     AMUSEMENT_PARK(MatchCategory.POI, "Amusement Park"),

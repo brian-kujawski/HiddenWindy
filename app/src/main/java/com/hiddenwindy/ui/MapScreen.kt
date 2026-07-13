@@ -125,6 +125,8 @@ fun MapScreen(
                     when (dataset) {
                         "line_regions" -> viewModel.nearestLineToMe()
                         "transit_airport" -> viewModel.nearestAirportToMe()
+                        "natural_park" -> viewModel.nearestParkToMe()
+                        "station_name_length" -> viewModel.nearestStationNameLengthToMe()
                         else -> null
                     }
                 },
