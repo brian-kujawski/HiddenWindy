@@ -64,6 +64,7 @@ fun MapScreen(
     var showQuestionsModal by remember { mutableStateOf(false) }
     var questionsStartOnRadar by remember { mutableStateOf(false) }
     var showHistoryModal by remember { mutableStateOf(false) }
+    var showLayersModal by remember { mutableStateOf(false) }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -206,6 +207,17 @@ fun MapScreen(
             )
         }
 
+        if (showLayersModal) {
+            LayersModal(
+                activeDataset = state.activePOILayer?.dataset,
+                onSelect = { option ->
+                    viewModel.showPOILayer(option.dataset, option.displayName)
+                    showLayersModal = false
+                },
+                onDismiss = { showLayersModal = false },
+            )
+        }
+
         state.radarPending?.let { pending ->
             RadarPanel(
                 label = pending.label,
@@ -325,6 +337,19 @@ fun MapScreen(
         }
 
         if (state.radarConfirmed == null && state.thermometerPending == null && state.thermometerActive == null && state.matchingConfirmed == null && state.measuringPOIConfirmed == null) {
+            // Layers floating button — bottom-right, above the ControlPanel
+            FilledTonalButton(
+                onClick = { showLayersModal = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 12.dp, bottom = 100.dp),
+            ) {
+                Text(
+                    text = if (state.activePOILayer != null) "Layers: ${state.activePOILayer.displayName}" else "Layers",
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+
             ControlPanel(
                 state = state,
                 onToggleHidingZone = viewModel::toggleHidingZone,

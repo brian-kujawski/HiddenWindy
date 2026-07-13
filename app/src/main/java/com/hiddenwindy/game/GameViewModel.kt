@@ -381,6 +381,23 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _state.update { GameState(stations = it.stations, myLocation = it.myLocation) }
     }
 
+    /** Shows the given dataset's points as map markers. Toggling the same dataset clears it. */
+    fun showPOILayer(dataset: String, displayName: String) {
+        val points = datasetPoints(dataset)
+        if (points.isEmpty()) return
+        val current = _state.value.activePOILayer
+        if (current?.dataset == dataset) {
+            _state.update { it.copy(activePOILayer = null) }
+        } else {
+            _state.update { it.copy(activePOILayer = POILayerState(dataset, displayName, points)) }
+        }
+    }
+
+    /** Clears any active POI layer markers from the map. */
+    fun clearPOILayer() {
+        _state.update { it.copy(activePOILayer = null) }
+    }
+
     /** Toggles the hardcoded Cloud Gate debug location on/off. */
     fun toggleBeanLocation() {
         _state.update { state ->
@@ -608,6 +625,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun datasetPoints(dataset: String): List<NamedPoint> = when (dataset) {
+        "transit_airport" -> airportPoints
+        "natural_park" -> parkPoints
         "poi-amusementparks" -> amusementParkPoints
         "poi-zoo" -> zooPoints
         "poi-aquarium" -> aquariumPoints

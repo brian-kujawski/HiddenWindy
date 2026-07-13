@@ -39,6 +39,10 @@ object MapConstants {
     const val RADAR_RESULT_SOURCE = "radar-result-source"
     const val RADAR_RESULT_FILL_LAYER = "radar-result-fill-layer"
 
+    const val POI_MARKERS_SOURCE = "poi-markers-source"
+    const val POI_MARKERS_CIRCLE_LAYER = "poi-markers-circle-layer"
+    const val POI_MARKERS_LABEL_LAYER = "poi-markers-label-layer"
+
     /** Initial map camera — downtown Chicago (41°53'N 87°38'W). */
     const val INITIAL_LAT = 41.8833
     const val INITIAL_LON = -87.6333

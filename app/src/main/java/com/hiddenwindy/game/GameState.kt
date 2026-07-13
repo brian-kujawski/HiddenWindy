@@ -1,5 +1,6 @@
 package com.hiddenwindy.game
 
+import com.hiddenwindy.data.NamedPoint
 import com.hiddenwindy.data.Station
 import org.maplibre.geojson.Point
 import org.maplibre.geojson.Polygon
@@ -93,6 +94,13 @@ data class AskedQuestion(
     val detail: String,
 )
 
+/** A dataset being rendered as point markers on the map (see Layers feature). */
+data class POILayerState(
+    val dataset: String,
+    val displayName: String,
+    val points: List<NamedPoint>,
+)
+
 /** Immutable snapshot of the game, observed by the UI and the map renderer. */
 data class GameState(
     val stations: List<Station> = emptyList(),
@@ -112,6 +120,7 @@ data class GameState(
     val matchingConfirmed: MatchingConfirmed? = null,
     val measuringPOIConfirmed: MeasuringPOIConfirmed? = null,
     val askedQuestions: List<AskedQuestion> = emptyList(),
+    val activePOILayer: POILayerState? = null,
 ) {
     /** Centers of every clear (in-play) circle: the locked zone plus the active station's zone. */
     val clearZoneCenters: List<Point>

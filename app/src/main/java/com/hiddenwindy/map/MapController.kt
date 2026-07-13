@@ -8,6 +8,7 @@ import org.maplibre.android.style.layers.FillLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.android.maps.Style
 import org.maplibre.geojson.Feature
@@ -39,6 +40,7 @@ class MapController {
         style.addSource(GeoJsonSource(MapConstants.MY_LOCATION_SOURCE, empty))
         style.addSource(GeoJsonSource(MapConstants.RADAR_PREVIEW_SOURCE, empty))
         style.addSource(GeoJsonSource(MapConstants.RADAR_RESULT_SOURCE, empty))
+        style.addSource(GeoJsonSource(MapConstants.POI_MARKERS_SOURCE, empty))
 
         // Transit lines (data-driven colour from the "color" property).
         style.addLayer(
@@ -126,6 +128,28 @@ class MapController {
                 PropertyFactory.circleStrokeWidth(2.5f),
             )
         )
+
+        // POI layer markers — shown when user activates a dataset from the Layers picker.
+        // Circles always visible; labels only at zoom >= 13 to avoid clutter.
+        style.addLayer(
+            CircleLayer(MapConstants.POI_MARKERS_CIRCLE_LAYER, MapConstants.POI_MARKERS_SOURCE).withProperties(
+                PropertyFactory.circleRadius(6.0f),
+                PropertyFactory.circleColor("#FFC107"),
+                PropertyFactory.circleStrokeColor("#FFFFFF"),
+                PropertyFactory.circleStrokeWidth(1.5f),
+            )
+        )
+        style.addLayer(
+            SymbolLayer(MapConstants.POI_MARKERS_LABEL_LAYER, MapConstants.POI_MARKERS_SOURCE).withProperties(
+                PropertyFactory.textField(Expression.get("name")),
+                PropertyFactory.textSize(11f),
+                PropertyFactory.textAnchor(Property.TEXT_ANCHOR_TOP),
+                PropertyFactory.textOffset(arrayOf(0f, 0.6f)),
+                PropertyFactory.textColor("#212121"),
+                PropertyFactory.textHaloColor("#FFFFFF"),
+                PropertyFactory.textHaloWidth(1.5f),
+            ).withFilter(Expression.gte(Expression.zoom(), Expression.literal(13)))
+        )
     }
 
     /** Pushes the current [state] into the overlay sources. No-op before [setup]. */
@@ -170,6 +194,16 @@ class MapController {
         // Radar results are folded into the unified exclusion shading above, so this legacy layer
         // stays empty to avoid a second translucent pass that would stack opacity.
         source(style, MapConstants.RADAR_RESULT_SOURCE)?.setGeoJson(empty)
+
+        // POI layer markers for the active dataset, or empty when no layer is selected.
+        val poiFeatures = state.activePOILayer?.points?.map { namedPoint ->
+            Feature.fromGeometry(namedPoint.location).also { f ->
+                f.addStringProperty("name", namedPoint.name)
+            }
+        } ?: emptyList()
+        source(style, MapConstants.POI_MARKERS_SOURCE)?.setGeoJson(
+            FeatureCollection.fromFeatures(poiFeatures)
+        )
     }
 
     fun release() {
