@@ -345,7 +345,7 @@ fun MapScreen(
                     .padding(end = 12.dp, bottom = 100.dp),
             ) {
                 Text(
-                    text = if (state.activePOILayer != null) "Layers: ${state.activePOILayer.displayName}" else "Layers",
+                    text = state.activePOILayer?.displayName?.let { "Layers: $it" } ?: "Layers",
                     style = MaterialTheme.typography.labelMedium,
                 )
             }
