@@ -143,6 +143,7 @@ fun MapScreen(
                         "transit_airport" -> viewModel.nearestAirportToMe()
                         "natural_park" -> viewModel.nearestParkToMe()
                         "station_name_length" -> viewModel.nearestStationNameLengthToMe()
+                        "station_name" -> viewModel.nearestStationNameToMe()
                         "poi-amusementparks" -> viewModel.nearestAmusementParkToMe()
                         "poi-zoo" -> viewModel.nearestZooToMe()
                         "poi-aquarium" -> viewModel.nearestAquariumToMe()
@@ -170,7 +171,8 @@ fun MapScreen(
                     .map { it.detail }
                     .toSet(),
                 onMatchingConfirm = { dataset, featureLabel, seekerNearestName ->
-                    viewModel.confirmMatching(dataset, featureLabel, seekerNearestName)
+                    val stationName = if (dataset == "station_name_length") viewModel.nearestStationNameToMe() else null
+                    viewModel.confirmMatching(dataset, featureLabel, seekerNearestName, stationName)
                     showQuestionsModal = false
                     questionsStartOnRadar = false
                 },

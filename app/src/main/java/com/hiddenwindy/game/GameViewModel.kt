@@ -149,13 +149,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
      * Answers the Matching question for the line nearest to my location. [same] = true shades
      * everything outside that line's region; false shades the region itself.
      */
-    fun confirmMatching(dataset: String, featureLabel: String, seekerNearestName: String) {
+    fun confirmMatching(dataset: String, featureLabel: String, seekerNearestName: String, seekerNearestStationName: String? = null) {
         _state.update { state ->
             state.copy(
                 matchingConfirmed = MatchingConfirmed(
                     dataset = dataset,
                     featureLabel = featureLabel,
                     seekerNearestName = seekerNearestName,
+                    seekerNearestStationName = seekerNearestStationName,
                 )
             )
         }
@@ -242,6 +243,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         if (stations.isEmpty()) return null
         val nearest = stations.minByOrNull { haversineMeters(loc.latitude(), loc.longitude(), it.lat, it.lon) } ?: return null
         return nearest.name.count { it.isLetterOrDigit() }.toString()
+    }
+
+    /** Returns the name of the nearest station to the current location, or null. */
+    fun nearestStationNameToMe(): String? {
+        val loc = _state.value.effectiveLocation ?: return null
+        val stations = _state.value.stations
+        if (stations.isEmpty()) return null
+        return stations.minByOrNull { haversineMeters(loc.latitude(), loc.longitude(), it.lat, it.lon) }?.name
     }
 
     /** Returns the name of the nearest amusement park to the current location, or null. */

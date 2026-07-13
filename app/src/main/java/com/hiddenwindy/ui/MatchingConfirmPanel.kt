@@ -46,8 +46,13 @@ fun MatchingConfirmPanel(
     var copyPanelVisible by remember(confirmed.confirmedAt) { mutableStateOf(true) }
     var showResolveDialog by remember { mutableStateOf(false) }
 
-    val copyText =
-        "Is your nearest ${confirmed.featureLabel} the same as my nearest ${confirmed.featureLabel}?"
+    val copyText = if (confirmed.seekerNearestStationName != null) {
+        "Is your nearest ${confirmed.featureLabel} the same as mine? " +
+        "(My nearest station is ${confirmed.seekerNearestStationName}, name length ${confirmed.seekerNearestName}.)"
+    } else {
+        "Is your nearest ${confirmed.featureLabel} the same as my nearest ${confirmed.featureLabel}? " +
+        "(My nearest ${confirmed.featureLabel} is ${confirmed.seekerNearestName}.)"
+    }
 
     if (showResolveDialog) {
         AlertDialog(

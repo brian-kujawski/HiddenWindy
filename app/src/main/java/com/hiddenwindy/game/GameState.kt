@@ -55,6 +55,8 @@ data class MatchingConfirmed(
     val dataset: String,
     val featureLabel: String,
     val seekerNearestName: String,
+    /** For Station's Name Length only: the actual station name (seekerNearestName holds the length). */
+    val seekerNearestStationName: String? = null,
     val timerStarted: Boolean = false,
     val remainingSeconds: Int = 5 * 60,
     /** Monotonic ID so the copy panel knows when a brand-new confirmation has started. */

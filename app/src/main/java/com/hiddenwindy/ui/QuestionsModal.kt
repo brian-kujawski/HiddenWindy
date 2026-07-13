@@ -351,6 +351,7 @@ private fun MatchingNav(
         question != null && question.dataset != null -> FeatureMatchingSubmenu(
             featureLabel = question.displayName,
             nearestFeatureName = nearestFeatureName(question.dataset),
+            nearestStationName = if (question == MatchQuestion.STATION_NAME_LENGTH) nearestFeatureName("station_name") else null,
             enabled = matchingEnabled,
             onConfirm = { nearestName -> onMatchingConfirm(question.dataset, question.displayName, nearestName) },
         )
@@ -474,24 +475,34 @@ private fun FeatureMatchingSubmenu(
     nearestFeatureName: String?,
     enabled: Boolean,
     onConfirm: (nearestName: String) -> Unit,
+    nearestStationName: String? = null,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Seeker's nearest feature
         Surface(
             shape = MaterialTheme.shapes.medium,
             color = MaterialTheme.colorScheme.surfaceVariant,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-                Text(
-                    text = "Your nearest $featureLabel",
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Text(
-                    text = nearestFeatureName ?: if (enabled) "None nearby" else "Locating…",
-                    style = MaterialTheme.typography.titleMedium,
-                )
+            val questionText = when {
+                nearestFeatureName == null -> {
+                    val status = if (enabled) "None nearby" else "Locating…"
+                    if (nearestStationName != null)
+                        "Is your nearest $featureLabel the same as mine? ($status)"
+                    else
+                        "Is your nearest $featureLabel the same as my nearest $featureLabel? ($status)"
+                }
+                nearestStationName != null ->
+                    "Is your nearest $featureLabel the same as mine? " +
+                    "(My nearest station is $nearestStationName, name length $nearestFeatureName.)"
+                else ->
+                    "Is your nearest $featureLabel the same as my nearest $featureLabel? " +
+                    "(My nearest $featureLabel is $nearestFeatureName.)"
             }
+            Text(
+                text = questionText,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            )
         }
 
         Button(
