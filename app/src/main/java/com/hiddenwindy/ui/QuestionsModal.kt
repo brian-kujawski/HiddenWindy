@@ -88,7 +88,7 @@ private enum class MatchQuestion(
     PARK(MatchCategory.NATURAL, "Park", dataset = "natural_park"),
 
     // POI
-    AMUSEMENT_PARK(MatchCategory.POI, "Amusement Park"),
+    AMUSEMENT_PARK(MatchCategory.POI, "Amusement Park", dataset = "poi-amusementparks"),
     ZOO(MatchCategory.POI, "Zoo"),
     AQUARIUM(MatchCategory.POI, "Aquarium"),
     GOLF_COURSE(MatchCategory.POI, "Golf Course"),

@@ -143,6 +143,7 @@ fun MapScreen(
                         "transit_airport" -> viewModel.nearestAirportToMe()
                         "natural_park" -> viewModel.nearestParkToMe()
                         "station_name_length" -> viewModel.nearestStationNameLengthToMe()
+                        "poi-amusementparks" -> viewModel.nearestAmusementParkToMe()
                         else -> null
                     }
                 },

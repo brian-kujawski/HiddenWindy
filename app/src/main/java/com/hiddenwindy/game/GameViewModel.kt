@@ -47,6 +47,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var parkRegions: Map<String, List<Polygon>> = emptyMap()
     private var parkPoints: List<NamedPoint> = emptyList()
     private var stationNameLengthRegions: Map<String, List<Polygon>> = emptyMap()
+    private var amusementParkRegions: Map<String, List<Polygon>> = emptyMap()
+    private var amusementParkPoints: List<NamedPoint> = emptyList()
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -79,6 +81,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             stationNameLengthRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("station_name_length") }
+        }
+        viewModelScope.launch {
+            amusementParkRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("poi-amusementparks") }
+            amusementParkPoints = withContext(Dispatchers.IO) { pointRegionsRepository.loadNamedPoints("poi-amusementparks") }
         }
     }
 
@@ -134,6 +140,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             "transit_airport" -> airportRegions[name]
             "natural_park" -> parkRegions[name]
             "station_name_length" -> stationNameLengthRegions[name]
+            "poi-amusementparks" -> amusementParkRegions[name]
             else -> null
         } ?: return
         matchingTimerJob?.cancel()
@@ -179,6 +186,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         if (stations.isEmpty()) return null
         val nearest = stations.minByOrNull { haversineMeters(loc.latitude(), loc.longitude(), it.lat, it.lon) } ?: return null
         return nearest.name.count { it.isLetterOrDigit() }.toString()
+    }
+
+    /** Returns the name of the nearest amusement park to the current location, or null. */
+    fun nearestAmusementParkToMe(): String? {
+        val loc = _state.value.effectiveLocation ?: return null
+        if (amusementParkPoints.isEmpty()) return null
+        return pointRegionsRepository.nearestName(loc, amusementParkPoints)
     }
 
     fun selectStation(station: Station?) {
