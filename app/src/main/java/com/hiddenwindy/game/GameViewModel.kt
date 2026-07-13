@@ -600,7 +600,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             state.copy(
                 radarPending = null,
                 adjustingLocation = false,
-                adjustedLocation = null,
+                // Keep adjustedLocation so the adjusted centre stays marked on the
+                // map as a reminder until the radar is resolved.
                 radarConfirmed = RadarConfirmed(
                     label = pending.label,
                     radiusMiles = pending.radiusMiles,
@@ -646,6 +647,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _state.update { state ->
             state.copy(
                 radarConfirmed = null,
+                adjustedLocation = null,
                 radarResults = state.radarResults + result,
             )
         }

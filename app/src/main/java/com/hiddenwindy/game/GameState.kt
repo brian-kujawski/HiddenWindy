@@ -154,7 +154,11 @@ data class GameState(
 
     /** The draggable Adjust target position, or null when not adjusting. */
     val adjustTargetPoint: Point?
-        get() = if (adjustingLocation) adjustedLocation else null
+        get() = when {
+            adjustingLocation -> adjustedLocation
+            radarConfirmed != null -> adjustedLocation
+            else -> null
+        }
 
     /** Dashed connector from the GPS icon to the Adjust target, or null when not adjusting. */
     val adjustLine: LineString?

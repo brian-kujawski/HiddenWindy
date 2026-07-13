@@ -156,7 +156,7 @@ class MapController {
         // Adjust drift connector — dashed line from the GPS icon to the target.
         style.addLayer(
             LineLayer(MapConstants.ADJUST_LINE_LAYER, MapConstants.ADJUST_LINE_SOURCE).withProperties(
-                PropertyFactory.lineColor("#D32F2F"),
+                PropertyFactory.lineColor("#000000"),
                 PropertyFactory.lineWidth(2.0f),
                 PropertyFactory.lineDasharray(arrayOf(2.0f, 2.0f)),
             )
@@ -167,14 +167,14 @@ class MapController {
             CircleLayer(MapConstants.ADJUST_TARGET_RING_LAYER, MapConstants.ADJUST_TARGET_SOURCE).withProperties(
                 PropertyFactory.circleRadius(14.0f),
                 PropertyFactory.circleOpacity(0.0f),
-                PropertyFactory.circleStrokeColor("#D32F2F"),
+                PropertyFactory.circleStrokeColor("#000000"),
                 PropertyFactory.circleStrokeWidth(3.0f),
             )
         )
         style.addLayer(
             CircleLayer(MapConstants.ADJUST_TARGET_DOT_LAYER, MapConstants.ADJUST_TARGET_SOURCE).withProperties(
                 PropertyFactory.circleRadius(3.0f),
-                PropertyFactory.circleColor("#D32F2F"),
+                PropertyFactory.circleColor("#000000"),
             )
         )
     }
