@@ -154,6 +154,7 @@ fun MapScreen(
                         "utilities-consulates" -> viewModel.nearestConsulateToMe()
                         "utilities-library" -> viewModel.nearestLibraryToMe()
                         "poi-movietheater" -> viewModel.nearestMovieTheaterToMe()
+                        "natural_water" -> viewModel.nearestWaterBodyToMe()
                         else -> null
                     }
                 },

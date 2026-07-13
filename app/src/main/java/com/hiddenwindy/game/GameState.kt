@@ -71,6 +71,8 @@ data class MeasuringPOIConfirmed(
     val distanceMiles: Double,
     /** Locations of every POI of this type; used to compute circle eliminators on resolve. */
     val poiLocations: List<Point>,
+    /** Dataset key; when "natural_water" the resolve builds a polygon-buffer eliminator instead. */
+    val dataset: String = "",
     val timerStarted: Boolean = false,
     val remainingSeconds: Int = 5 * 60,
     val confirmedAt: Long = System.currentTimeMillis(),

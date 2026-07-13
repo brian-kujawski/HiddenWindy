@@ -130,7 +130,7 @@ private enum class MeasureQuestion(
     COUNTY(MeasureCategory.BORDERS, "County"),
 
     // Natural
-    BODY_OF_WATER(MeasureCategory.NATURAL, "Body of Water"),
+    BODY_OF_WATER(MeasureCategory.NATURAL, "Body of Water", dataset = "natural_water"),
     COASTLINE(MeasureCategory.NATURAL, "Coastline"),
     M_PARK(MeasureCategory.NATURAL, "Park"),
 

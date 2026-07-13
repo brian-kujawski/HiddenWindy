@@ -66,6 +66,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var libraryPoints: List<NamedPoint> = emptyList()
     private var movieTheaterRegions: Map<String, List<Polygon>> = emptyMap()
     private var movieTheaterPoints: List<NamedPoint> = emptyList()
+    private var waterRegions: Map<String, List<Polygon>> = emptyMap()
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -134,6 +135,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             movieTheaterRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("poi-movietheater") }
             movieTheaterPoints = withContext(Dispatchers.IO) { pointRegionsRepository.loadNamedPoints("poi-movietheater") }
+
+            waterRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("natural_water") }
         }
     }
 
@@ -616,9 +619,18 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Nearest named body of water to the seeker, or null if location unknown / not yet loaded. */
+    fun nearestWaterBodyToMe(): String? {
+        val loc = _state.value.effectiveLocation ?: return null
+        return pointRegionsRepository.nearestPolygonBody(loc, waterRegions)?.first
+    }
+
     /** Returns the nearest POI distance in miles for the given dataset, or null if location unknown. */
     fun nearestPointDistanceMiles(dataset: String): Double? {
         val loc = _state.value.effectiveLocation ?: return null
+        if (dataset == "natural_water") {
+            return pointRegionsRepository.nearestPolygonBody(loc, waterRegions)?.second
+        }
         val points = datasetPoints(dataset)
         if (points.isEmpty()) return null
         return points.minOfOrNull { TurfMeasurement.distance(loc, it.location, TurfConstants.UNIT_MILES) }
@@ -642,6 +654,21 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     /** Confirms a Measuring POI question: computes the seeker's nearest POI and stores state. */
     fun confirmMeasuringPOI(featureLabel: String, dataset: String) {
         val loc = _state.value.effectiveLocation ?: return
+        if (dataset == "natural_water") {
+            val nearest = pointRegionsRepository.nearestPolygonBody(loc, waterRegions) ?: return
+            _state.update { state ->
+                state.copy(
+                    measuringPOIConfirmed = MeasuringPOIConfirmed(
+                        featureLabel = featureLabel,
+                        nearestName = nearest.first,
+                        distanceMiles = nearest.second,
+                        poiLocations = emptyList(),
+                        dataset = dataset,
+                    )
+                )
+            }
+            return
+        }
         val points = datasetPoints(dataset)
         if (points.isEmpty()) return
         val nearest = points.minByOrNull { TurfMeasurement.distance(loc, it.location, TurfConstants.UNIT_MILES) } ?: return
@@ -653,6 +680,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     nearestName = nearest.name,
                     distanceMiles = distanceMiles,
                     poiLocations = points.map { it.location },
+                    dataset = dataset,
                 )
             )
         }
@@ -681,13 +709,23 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         measuringPOITimerJob?.cancel()
         measuringPOITimerJob = null
         val confirmed = _state.value.measuringPOIConfirmed ?: return
-        val eliminator = MeasuringPOIEliminator(
-            id = "measuring-poi-${eliminatorCounter++}",
-            featureLabel = confirmed.featureLabel,
-            poiLocations = confirmed.poiLocations,
-            distanceMiles = confirmed.distanceMiles,
-            closer = closer,
-        )
+        val eliminator: Eliminator = if (confirmed.dataset == "natural_water") {
+            MeasuringWaterEliminator(
+                id = "measuring-water-${eliminatorCounter++}",
+                featureLabel = confirmed.featureLabel,
+                waterPolygons = waterRegions.values.flatten(),
+                distanceMiles = confirmed.distanceMiles,
+                closer = closer,
+            )
+        } else {
+            MeasuringPOIEliminator(
+                id = "measuring-poi-${eliminatorCounter++}",
+                featureLabel = confirmed.featureLabel,
+                poiLocations = confirmed.poiLocations,
+                distanceMiles = confirmed.distanceMiles,
+                closer = closer,
+            )
+        }
         val record = AskedQuestion(
             category = QuestionCategory.MEASURING,
             label = "Measuring",

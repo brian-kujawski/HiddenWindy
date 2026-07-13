@@ -161,3 +161,35 @@ data class MeasuringPOIEliminator(
         }
     }
 }
+
+/**
+ * Eliminates based on the Measuring "Body of Water" question: "compared to me, are you closer to or
+ * farther from a body of water?"
+ *
+ * The seeker's nearest water edge is [distanceMiles] away. If the hider is [closer], they are within
+ * [distanceMiles] of some water, so everywhere farther than that from every body is out. If they are
+ * farther, everywhere within [distanceMiles] of any body is out. [waterPolygons] are the named
+ * bodies' shapes; buffering them by [distanceMiles] yields the "within" region.
+ */
+data class MeasuringWaterEliminator(
+    override val id: String,
+    val featureLabel: String,
+    val waterPolygons: List<Polygon>,
+    val distanceMiles: Double,
+    val closer: Boolean,
+) : Eliminator {
+
+    override val label: String =
+        if (closer) "Closer to $featureLabel" else "Farther from $featureLabel"
+
+    override fun outRegions(context: GameContext): List<Polygon> {
+        val centerLat = context.bounds.centerLat
+        val buffered = PolygonUnion.bufferMiles(waterPolygons, distanceMiles, centerLat)
+        if (buffered.isEmpty()) return emptyList()
+        return if (closer) {
+            listOfNotNull(ZoneGeometry.invertedMask(buffered, context.bounds))
+        } else {
+            buffered
+        }
+    }
+}
