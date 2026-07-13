@@ -39,7 +39,6 @@ private enum class QuestionsScreen(val displayName: String) {
     MEASURING("Measuring"),
     THERMOMETER("Thermometer"),
     RADAR("Radar"),
-    TENTACLES("Tentacles"),
     PHOTOS("Photos"),
 }
 
@@ -48,7 +47,6 @@ private val TOP_LEVEL_SCREENS = listOf(
     QuestionsScreen.MEASURING,
     QuestionsScreen.THERMOMETER,
     QuestionsScreen.RADAR,
-    QuestionsScreen.TENTACLES,
     QuestionsScreen.PHOTOS,
 )
 
