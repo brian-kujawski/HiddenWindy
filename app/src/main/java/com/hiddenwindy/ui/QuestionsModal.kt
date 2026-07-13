@@ -82,7 +82,7 @@ private enum class MatchQuestion(
     STREET_OR_PATH(MatchCategory.TRANSIT, "Street or Path"),
 
     // Divisions
-    MUNICIPALITY(MatchCategory.DIVISIONS, "Municipality"),
+    MUNICIPALITY(MatchCategory.DIVISIONS, "Municipality", dataset = "municipality"),
 
     // Natural
     PARK(MatchCategory.NATURAL, "Park", dataset = "natural_park"),
@@ -122,12 +122,12 @@ private enum class MeasureQuestion(
 ) {
     // Transit
     M_AIRPORT(MeasureCategory.TRANSIT, "Airport"),
-    RAIL_STATION(MeasureCategory.TRANSIT, "Rail Station"),
+    RAIL_STATION(MeasureCategory.TRANSIT, "Rail Station", dataset = "rail_station"),
 
     // Borders
-    INTERNATIONAL(MeasureCategory.BORDERS, "International"),
-    STATE(MeasureCategory.BORDERS, "State"),
-    COUNTY(MeasureCategory.BORDERS, "County"),
+    INTERNATIONAL(MeasureCategory.BORDERS, "International", dataset = "borders_international"),
+    STATE(MeasureCategory.BORDERS, "State", dataset = "borders_state"),
+    COUNTY(MeasureCategory.BORDERS, "County", dataset = "county"),
 
     // Natural
     BODY_OF_WATER(MeasureCategory.NATURAL, "Body of Water", dataset = "natural_water"),

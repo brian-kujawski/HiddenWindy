@@ -73,8 +73,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var movieTheaterRegions: Map<String, List<Polygon>> = emptyMap()
     private var movieTheaterPoints: List<NamedPoint> = emptyList()
     private var waterRegions: Map<String, List<Polygon>> = emptyMap()
+    private var municipalityRegions: Map<String, List<Polygon>> = emptyMap()
     private var waterDistanceGrid: WaterDistanceGrid? = null
     private var coastlineLine: org.maplibre.geojson.LineString? = null
+    private var countyLine: org.maplibre.geojson.LineString? = null
+    private var internationalLine: org.maplibre.geojson.LineString? = null
+    private var stateLine: org.maplibre.geojson.LineString? = null
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -162,9 +166,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
             waterRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("natural_water") }
 
+            municipalityRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("municipality") }
+
             waterDistanceGrid = withContext(Dispatchers.IO) { WaterDistanceGrid.load(getApplication()) }
 
             coastlineLine = withContext(Dispatchers.IO) { pointRegionsRepository.loadLineString("coastline") }
+
+            countyLine = withContext(Dispatchers.IO) { pointRegionsRepository.loadLineString("county") }
+
+            internationalLine = withContext(Dispatchers.IO) { pointRegionsRepository.loadLineString("borders_international") }
+
+            stateLine = withContext(Dispatchers.IO) { pointRegionsRepository.loadLineString("borders_state") }
         }
     }
 
@@ -220,6 +232,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             "line_regions" -> lineRegions[name]
             "transit_airport" -> airportRegions[name]
             "natural_park" -> parkRegions[name]
+            "municipality" -> municipalityRegions[name]
             "station_name_length" -> stationNameLengthRegions[name]
             "poi-amusementparks" -> amusementParkRegions[name]
             "poi-zoo" -> zooRegions[name]
@@ -704,10 +717,35 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         return pointRegionsRepository.nearestPolygonBody(loc, waterRegions)?.first
     }
 
+    /** Returns the name of the municipality nearest to the current location (containing it, or the
+     *  closest by edge distance when in an unincorporated gap), or null when location is unknown. */
+    fun nearestMunicipalityToMe(): String? {
+        val loc = _state.value.effectiveLocation ?: return null
+        return pointRegionsRepository.nearestPolygonBody(loc, municipalityRegions)?.first
+    }
+
     /** Display name for the coastline question, or null if location unknown / not yet loaded. */
     fun nearestCoastlineToMe(): String? {
         if (_state.value.effectiveLocation == null || coastlineLine == null) return null
         return "the coastline"
+    }
+
+    /** Display name for the county-border question, or null if location unknown / not yet loaded. */
+    fun nearestCountyBorderToMe(): String? {
+        if (_state.value.effectiveLocation == null || countyLine == null) return null
+        return "the county border"
+    }
+
+    /** Display name for the international-border question, or null if location unknown / not loaded. */
+    fun nearestInternationalBorderToMe(): String? {
+        if (_state.value.effectiveLocation == null || internationalLine == null) return null
+        return "the international border"
+    }
+
+    /** Display name for the state-border question, or null if location unknown / not loaded. */
+    fun nearestStateBorderToMe(): String? {
+        if (_state.value.effectiveLocation == null || stateLine == null) return null
+        return "the state border"
     }
 
     /** Returns the nearest POI distance in miles for the given dataset, or null if location unknown. */
@@ -720,12 +758,25 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             val line = coastlineLine ?: return null
             return pointRegionsRepository.distanceToLineMiles(loc, line)
         }
+        if (dataset == "county") {
+            val line = countyLine ?: return null
+            return pointRegionsRepository.distanceToLineMiles(loc, line)
+        }
+        if (dataset == "borders_international") {
+            val line = internationalLine ?: return null
+            return pointRegionsRepository.distanceToLineMiles(loc, line)
+        }
+        if (dataset == "borders_state") {
+            val line = stateLine ?: return null
+            return pointRegionsRepository.distanceToLineMiles(loc, line)
+        }
         val points = datasetPoints(dataset)
         if (points.isEmpty()) return null
         return points.minOfOrNull { TurfMeasurement.distance(loc, it.location, TurfConstants.UNIT_MILES) }
     }
 
     private fun datasetPoints(dataset: String): List<NamedPoint> = when (dataset) {
+        "rail_station" -> _state.value.stations.map { NamedPoint(it.name, Point.fromLngLat(it.lon, it.lat)) }
         "transit_airport" -> airportPoints
         "natural_park" -> parkPoints
         "poi-amusementparks" -> amusementParkPoints
@@ -766,6 +817,54 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     measuringPOIConfirmed = MeasuringPOIConfirmed(
                         featureLabel = featureLabel,
                         nearestName = "the coastline",
+                        distanceMiles = distanceMiles,
+                        poiLocations = emptyList(),
+                        dataset = dataset,
+                    )
+                )
+            }
+            return
+        }
+        if (dataset == "county") {
+            val line = countyLine ?: return
+            val distanceMiles = pointRegionsRepository.distanceToLineMiles(loc, line)
+            _state.update { state ->
+                state.copy(
+                    measuringPOIConfirmed = MeasuringPOIConfirmed(
+                        featureLabel = featureLabel,
+                        nearestName = "the county border",
+                        distanceMiles = distanceMiles,
+                        poiLocations = emptyList(),
+                        dataset = dataset,
+                    )
+                )
+            }
+            return
+        }
+        if (dataset == "borders_international") {
+            val line = internationalLine ?: return
+            val distanceMiles = pointRegionsRepository.distanceToLineMiles(loc, line)
+            _state.update { state ->
+                state.copy(
+                    measuringPOIConfirmed = MeasuringPOIConfirmed(
+                        featureLabel = featureLabel,
+                        nearestName = "the international border",
+                        distanceMiles = distanceMiles,
+                        poiLocations = emptyList(),
+                        dataset = dataset,
+                    )
+                )
+            }
+            return
+        }
+        if (dataset == "borders_state") {
+            val line = stateLine ?: return
+            val distanceMiles = pointRegionsRepository.distanceToLineMiles(loc, line)
+            _state.update { state ->
+                state.copy(
+                    measuringPOIConfirmed = MeasuringPOIConfirmed(
+                        featureLabel = featureLabel,
+                        nearestName = "the state border",
                         distanceMiles = distanceMiles,
                         poiLocations = emptyList(),
                         dataset = dataset,
@@ -828,6 +927,34 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 id = "measuring-coastline-${eliminatorCounter++}",
                 featureLabel = confirmed.featureLabel,
                 coastline = coastlineLine?.coordinates() ?: emptyList(),
+                distanceMiles = confirmed.distanceMiles,
+                closer = closer,
+            )
+        } else if (confirmed.dataset == "county") {
+            // The county border is a closed polyline; the distance-from-a-line band eliminator
+            // handles it identically to the coastline.
+            MeasuringCoastlineEliminator(
+                id = "measuring-county-${eliminatorCounter++}",
+                featureLabel = confirmed.featureLabel,
+                coastline = countyLine?.coordinates() ?: emptyList(),
+                distanceMiles = confirmed.distanceMiles,
+                closer = closer,
+            )
+        } else if (confirmed.dataset == "borders_international") {
+            // The international border is a polyline; same distance-from-a-line band eliminator.
+            MeasuringCoastlineEliminator(
+                id = "measuring-international-${eliminatorCounter++}",
+                featureLabel = confirmed.featureLabel,
+                coastline = internationalLine?.coordinates() ?: emptyList(),
+                distanceMiles = confirmed.distanceMiles,
+                closer = closer,
+            )
+        } else if (confirmed.dataset == "borders_state") {
+            // The state border is a polyline; same distance-from-a-line band eliminator.
+            MeasuringCoastlineEliminator(
+                id = "measuring-state-${eliminatorCounter++}",
+                featureLabel = confirmed.featureLabel,
+                coastline = stateLine?.coordinates() ?: emptyList(),
                 distanceMiles = confirmed.distanceMiles,
                 closer = closer,
             )

@@ -140,7 +140,12 @@ fun MapScreen(
                         "utilities-library" -> viewModel.nearestLibraryToMe()
                         "poi-movietheater" -> viewModel.nearestMovieTheaterToMe()
                         "natural_water" -> viewModel.nearestWaterBodyToMe()
+                        "municipality" -> viewModel.nearestMunicipalityToMe()
                         "coastline" -> viewModel.nearestCoastlineToMe()
+                        "county" -> viewModel.nearestCountyBorderToMe()
+                        "borders_international" -> viewModel.nearestInternationalBorderToMe()
+                        "borders_state" -> viewModel.nearestStateBorderToMe()
+                        "rail_station" -> viewModel.nearestStationNameToMe()
                         else -> null
                     }
                 },
