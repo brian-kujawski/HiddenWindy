@@ -147,6 +147,9 @@ fun MapScreen(
                         "poi-zoo" -> viewModel.nearestZooToMe()
                         "poi-aquarium" -> viewModel.nearestAquariumToMe()
                         "poi-museum" -> viewModel.nearestMuseumToMe()
+                        "poi-golfcourse" -> viewModel.nearestGolfCourseToMe()
+                        "utilities-hospital" -> viewModel.nearestHospitalToMe()
+                        "utilities-consulates" -> viewModel.nearestConsulateToMe()
                         else -> null
                     }
                 },

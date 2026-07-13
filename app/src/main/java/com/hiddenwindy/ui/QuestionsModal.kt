@@ -91,14 +91,14 @@ private enum class MatchQuestion(
     AMUSEMENT_PARK(MatchCategory.POI, "Amusement Park", dataset = "poi-amusementparks"),
     ZOO(MatchCategory.POI, "Zoo", dataset = "poi-zoo"),
     AQUARIUM(MatchCategory.POI, "Aquarium", dataset = "poi-aquarium"),
-    GOLF_COURSE(MatchCategory.POI, "Golf Course"),
+    GOLF_COURSE(MatchCategory.POI, "Golf Course", dataset = "poi-golfcourse"),
     MUSEUM(MatchCategory.POI, "Museum", dataset = "poi-museum"),
     MOVIE_THEATER(MatchCategory.POI, "Movie Theater"),
 
     // Utilities
-    HOSPITAL(MatchCategory.UTILITIES, "Hospital"),
+    HOSPITAL(MatchCategory.UTILITIES, "Hospital", dataset = "utilities-hospital"),
     LIBRARY(MatchCategory.UTILITIES, "Library"),
-    FOREIGN_CONSULATE(MatchCategory.UTILITIES, "Foreign Consulate"),
+    FOREIGN_CONSULATE(MatchCategory.UTILITIES, "Foreign Consulate", dataset = "utilities-consulates"),
 }
 
 /** Sub-categories shown after tapping Measuring. */

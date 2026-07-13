@@ -55,6 +55,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var aquariumPoints: List<NamedPoint> = emptyList()
     private var museumRegions: Map<String, List<Polygon>> = emptyMap()
     private var museumPoints: List<NamedPoint> = emptyList()
+    private var golfCourseRegions: Map<String, List<Polygon>> = emptyMap()
+    private var golfCoursePoints: List<NamedPoint> = emptyList()
+    private var hospitalRegions: Map<String, List<Polygon>> = emptyMap()
+    private var hospitalPoints: List<NamedPoint> = emptyList()
+    private var consulateRegions: Map<String, List<Polygon>> = emptyMap()
+    private var consulatePoints: List<NamedPoint> = emptyList()
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -103,6 +109,18 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             museumRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("poi-museum") }
             museumPoints = withContext(Dispatchers.IO) { pointRegionsRepository.loadNamedPoints("poi-museum") }
+        }
+        viewModelScope.launch {
+            golfCourseRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("poi-golfcourse") }
+            golfCoursePoints = withContext(Dispatchers.IO) { pointRegionsRepository.loadNamedPoints("poi-golfcourse") }
+        }
+        viewModelScope.launch {
+            hospitalRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("utilities-hospital") }
+            hospitalPoints = withContext(Dispatchers.IO) { pointRegionsRepository.loadNamedPoints("utilities-hospital") }
+        }
+        viewModelScope.launch {
+            consulateRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("utilities-consulates") }
+            consulatePoints = withContext(Dispatchers.IO) { pointRegionsRepository.loadNamedPoints("utilities-consulates") }
         }
     }
 
@@ -162,6 +180,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             "poi-zoo" -> zooRegions[name]
             "poi-aquarium" -> aquariumRegions[name]
             "poi-museum" -> museumRegions[name]
+            "poi-golfcourse" -> golfCourseRegions[name]
+            "utilities-hospital" -> hospitalRegions[name]
+            "utilities-consulates" -> consulateRegions[name]
             else -> null
         } ?: return
         matchingTimerJob?.cancel()
@@ -235,6 +256,27 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val loc = _state.value.effectiveLocation ?: return null
         if (museumPoints.isEmpty()) return null
         return pointRegionsRepository.nearestName(loc, museumPoints)
+    }
+
+    /** Returns the name of the nearest golf course to the current location, or null. */
+    fun nearestGolfCourseToMe(): String? {
+        val loc = _state.value.effectiveLocation ?: return null
+        if (golfCoursePoints.isEmpty()) return null
+        return pointRegionsRepository.nearestName(loc, golfCoursePoints)
+    }
+
+    /** Returns the name of the nearest hospital to the current location, or null. */
+    fun nearestHospitalToMe(): String? {
+        val loc = _state.value.effectiveLocation ?: return null
+        if (hospitalPoints.isEmpty()) return null
+        return pointRegionsRepository.nearestName(loc, hospitalPoints)
+    }
+
+    /** Returns the name of the nearest foreign consulate to the current location, or null. */
+    fun nearestConsulateToMe(): String? {
+        val loc = _state.value.effectiveLocation ?: return null
+        if (consulatePoints.isEmpty()) return null
+        return pointRegionsRepository.nearestName(loc, consulatePoints)
     }
 
     fun selectStation(station: Station?) {
