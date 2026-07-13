@@ -93,7 +93,7 @@ private enum class MatchQuestion(
     AQUARIUM(MatchCategory.POI, "Aquarium", dataset = "poi-aquarium"),
     GOLF_COURSE(MatchCategory.POI, "Golf Course", dataset = "poi-golfcourse"),
     MUSEUM(MatchCategory.POI, "Museum", dataset = "poi-museum"),
-    MOVIE_THEATER(MatchCategory.POI, "Movie Theater"),
+    MOVIE_THEATER(MatchCategory.POI, "Movie Theater", dataset = "poi-movietheater"),
 
     // Utilities
     HOSPITAL(MatchCategory.UTILITIES, "Hospital", dataset = "utilities-hospital"),

@@ -151,6 +151,7 @@ fun MapScreen(
                         "utilities-hospital" -> viewModel.nearestHospitalToMe()
                         "utilities-consulates" -> viewModel.nearestConsulateToMe()
                         "utilities-library" -> viewModel.nearestLibraryToMe()
+                        "poi-movietheater" -> viewModel.nearestMovieTheaterToMe()
                         else -> null
                     }
                 },

@@ -63,6 +63,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var consulatePoints: List<NamedPoint> = emptyList()
     private var libraryRegions: Map<String, List<Polygon>> = emptyMap()
     private var libraryPoints: List<NamedPoint> = emptyList()
+    private var movieTheaterRegions: Map<String, List<Polygon>> = emptyMap()
+    private var movieTheaterPoints: List<NamedPoint> = emptyList()
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -128,6 +130,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             libraryRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("utilities-library") }
             libraryPoints = withContext(Dispatchers.IO) { pointRegionsRepository.loadNamedPoints("utilities-library") }
         }
+        viewModelScope.launch {
+            movieTheaterRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("poi-movietheater") }
+            movieTheaterPoints = withContext(Dispatchers.IO) { pointRegionsRepository.loadNamedPoints("poi-movietheater") }
+        }
     }
 
     fun raw(): TransitRepository = repository
@@ -190,6 +196,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             "utilities-hospital" -> hospitalRegions[name]
             "utilities-consulates" -> consulateRegions[name]
             "utilities-library" -> libraryRegions[name]
+            "poi-movietheater" -> movieTheaterRegions[name]
             else -> null
         } ?: return
         matchingTimerJob?.cancel()
@@ -291,6 +298,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val loc = _state.value.effectiveLocation ?: return null
         if (libraryPoints.isEmpty()) return null
         return pointRegionsRepository.nearestName(loc, libraryPoints)
+    }
+
+    /** Returns the name of the nearest movie theater to the current location, or null. */
+    fun nearestMovieTheaterToMe(): String? {
+        val loc = _state.value.effectiveLocation ?: return null
+        if (movieTheaterPoints.isEmpty()) return null
+        return pointRegionsRepository.nearestName(loc, movieTheaterPoints)
     }
 
     fun selectStation(station: Station?) {
