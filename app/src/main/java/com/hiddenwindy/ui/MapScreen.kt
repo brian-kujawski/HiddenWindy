@@ -92,21 +92,6 @@ fun MapScreen(
                 .padding(12.dp),
         )
 
-        Surface(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(12.dp),
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            tonalElevation = 2.dp,
-        ) {
-            Text(
-                text = "${state.stationsInPlay}/${state.stations.size} In Play",
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            )
-        }
-
         if (state.selectedStation == null) {
             HamburgerMenu(
                 onNewGame = viewModel::resetGame,

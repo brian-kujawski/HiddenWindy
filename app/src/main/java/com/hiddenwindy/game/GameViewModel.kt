@@ -20,10 +20,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.hiddenwindy.map.MapConstants
+import com.hiddenwindy.map.PolygonUnion
+import com.hiddenwindy.map.WaterDistanceGrid
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
 import org.maplibre.geojson.Polygon
@@ -68,6 +73,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var movieTheaterRegions: Map<String, List<Polygon>> = emptyMap()
     private var movieTheaterPoints: List<NamedPoint> = emptyList()
     private var waterRegions: Map<String, List<Polygon>> = emptyMap()
+    private var waterDistanceGrid: WaterDistanceGrid? = null
     private var coastlineLine: org.maplibre.geojson.LineString? = null
 
     private val locationCallback = object : LocationCallback() {
@@ -83,6 +89,22 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var eliminatorCounter = 0
 
     init {
+        // Rebuild the dissolved exclusion overlay OFF the main thread whenever the question set
+        // changes. Contouring + JTS union of large regions (e.g. Body of Water "Closer") is far too
+        // heavy for the render/UI thread and previously ANRed; the renderer now just draws the
+        // precomputed result. Timer-only state copies keep the same list refs, so this stays idle.
+        viewModelScope.launch {
+            _state
+                .map { it.eliminators to it.radarResults }
+                .distinctUntilChanged()
+                .collectLatest {
+                    val snapshot = _state.value
+                    val dissolved = withContext(Dispatchers.Default) {
+                        PolygonUnion.dissolve(snapshot.allOutRegions())
+                    }
+                    _state.update { it.copy(eliminatorOverlay = dissolved) }
+                }
+        }
         viewModelScope.launch {
             val stations = withContext(Dispatchers.IO) { repository.loadStations() }
             _state.update { it.copy(stations = stations) }
@@ -139,6 +161,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             movieTheaterPoints = withContext(Dispatchers.IO) { pointRegionsRepository.loadNamedPoints("poi-movietheater") }
 
             waterRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("natural_water") }
+
+            waterDistanceGrid = withContext(Dispatchers.IO) { WaterDistanceGrid.load(getApplication()) }
 
             coastlineLine = withContext(Dispatchers.IO) { pointRegionsRepository.loadLineString("coastline") }
         }
@@ -790,11 +814,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         measuringPOITimerJob?.cancel()
         measuringPOITimerJob = null
         val confirmed = _state.value.measuringPOIConfirmed ?: return
-        val eliminator: Eliminator = if (confirmed.dataset == "natural_water") {
+        val grid = waterDistanceGrid
+        val eliminator: Eliminator = if (confirmed.dataset == "natural_water" && grid != null) {
             MeasuringWaterEliminator(
                 id = "measuring-water-${eliminatorCounter++}",
                 featureLabel = confirmed.featureLabel,
-                waterPolygons = waterRegions.values.flatten(),
+                grid = grid,
                 distanceMiles = confirmed.distanceMiles,
                 closer = closer,
             )

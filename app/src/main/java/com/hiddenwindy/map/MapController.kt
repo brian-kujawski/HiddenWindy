@@ -195,9 +195,10 @@ class MapController {
             FeatureCollection.fromFeatures(state.hidingZoneCircles.map { Feature.fromGeometry(it) })
         )
 
-        // Dissolve every exclusion (rules + radar) into non-overlapping geometry so a translucent
-        // fill renders as one flat shade instead of stacking darker where questions overlap.
-        val outFeatures = PolygonUnion.dissolve(state.allOutRegions()).map { Feature.fromGeometry(it) }
+        // Draw the precomputed, already-dissolved exclusion shading. The heavy JTS union /
+        // marching-squares contour runs off the main thread in the ViewModel (state.eliminatorOverlay),
+        // so rendering here is just wrapping polygons as features.
+        val outFeatures = state.eliminatorOverlay.map { Feature.fromGeometry(it) }
         source(style, MapConstants.ELIMINATOR_SOURCE)?.setGeoJson(
             FeatureCollection.fromFeatures(outFeatures)
         )

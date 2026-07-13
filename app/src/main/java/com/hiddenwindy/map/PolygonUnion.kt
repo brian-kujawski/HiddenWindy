@@ -4,6 +4,7 @@ import org.locationtech.jts.geom.Coordinate
 import org.locationtech.jts.geom.Geometry
 import org.locationtech.jts.geom.GeometryFactory
 import org.locationtech.jts.geom.LinearRing
+import org.locationtech.jts.geom.util.GeometryFixer
 import org.locationtech.jts.operation.union.UnaryUnionOp
 import org.maplibre.geojson.Point
 import kotlin.math.cos
@@ -25,10 +26,19 @@ object PolygonUnion {
     /** Unions [polygons] (which may overlap or contain holes) into non-overlapping MapLibre polygons. */
     fun dissolve(polygons: List<MlPolygon>): List<MlPolygon> {
         if (polygons.isEmpty()) return emptyList()
-        val jts = polygons.mapNotNull { toJts(it) }
+        // Repair each polygon before unioning. The marching-squares water contour can emit rings
+        // with tiny self-intersections or imperfect hole nesting; feeding those straight into JTS's
+        // overlay throws TopologyException ("unable to assign free hole to a shell") and crashes the
+        // app. GeometryFixer (JTS 1.19) snaps them to valid geometry first.
+        val jts = polygons.mapNotNull { toJts(it) }.mapNotNull { poly ->
+            runCatching { GeometryFixer.fix(poly) }.getOrNull()?.takeUnless { it.isEmpty }
+        }
         if (jts.isEmpty()) return emptyList()
-        val union = UnaryUnionOp.union(jts) ?: return emptyList()
-        return fromJts(union)
+        // Even with repaired input, JTS overlay can hit rare robustness failures. Never let that
+        // take down the app: fall back to the (already valid) unrepaired polygons, which still
+        // render correctly just without opacity flattening where they overlap.
+        val union = runCatching { UnaryUnionOp.union(jts) }.getOrNull()
+        return if (union != null) fromJts(union) else polygons
     }
 
     /**

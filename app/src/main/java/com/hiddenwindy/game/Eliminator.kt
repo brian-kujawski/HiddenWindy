@@ -2,6 +2,7 @@ package com.hiddenwindy.game
 
 import com.hiddenwindy.data.Station
 import com.hiddenwindy.map.PolygonUnion
+import com.hiddenwindy.map.WaterDistanceGrid
 import org.maplibre.geojson.Point
 import org.maplibre.geojson.Polygon
 
@@ -174,7 +175,7 @@ data class MeasuringPOIEliminator(
 data class MeasuringWaterEliminator(
     override val id: String,
     val featureLabel: String,
-    val waterPolygons: List<Polygon>,
+    val grid: WaterDistanceGrid,
     val distanceMiles: Double,
     val closer: Boolean,
 ) : Eliminator {
@@ -182,16 +183,24 @@ data class MeasuringWaterEliminator(
     override val label: String =
         if (closer) "Closer to $featureLabel" else "Farther from $featureLabel"
 
-    override fun outRegions(context: GameContext): List<Polygon> {
-        val centerLat = context.bounds.centerLat
-        val buffered = PolygonUnion.bufferMiles(waterPolygons, distanceMiles, centerLat)
-        if (buffered.isEmpty()) return emptyList()
-        return if (closer) {
-            listOfNotNull(ZoneGeometry.invertedMask(buffered, context.bounds))
+    // The contour depends only on immutable fields, but outRegions() is called on every state
+    // emission (render + stations-in-play), and the countdown timer emits every second. Compute the
+    // isodistance geometry once and reuse it so we never re-run marching squares per frame.
+    private val cachedRegions: List<Polygon> by lazy {
+        val thresholdMeters = distanceMiles * 1609.344
+        if (closer) {
+            // Hider is closer to water than us: shade everything FARTHER than the threshold.
+            grid.regionsBeyond(thresholdMeters)
         } else {
-            buffered
+            // Hider is farther: shade everything WITHIN the threshold of water.
+            grid.regionsWithin(thresholdMeters)
         }
     }
+
+    // Threshold the precomputed distance field and contour the exact polarity we want to shade,
+    // returning valid polygons-with-holes directly. This avoids the runtime JTS buffer (ANR) and
+    // the invertedMask ring-nesting bug.
+    override fun outRegions(context: GameContext): List<Polygon> = cachedRegions
 }
 
 /**
