@@ -53,6 +53,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var zooPoints: List<NamedPoint> = emptyList()
     private var aquariumRegions: Map<String, List<Polygon>> = emptyMap()
     private var aquariumPoints: List<NamedPoint> = emptyList()
+    private var museumRegions: Map<String, List<Polygon>> = emptyMap()
+    private var museumPoints: List<NamedPoint> = emptyList()
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -97,6 +99,10 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             aquariumRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("poi-aquarium") }
             aquariumPoints = withContext(Dispatchers.IO) { pointRegionsRepository.loadNamedPoints("poi-aquarium") }
+        }
+        viewModelScope.launch {
+            museumRegions = withContext(Dispatchers.IO) { pointRegionsRepository.loadRegions("poi-museum") }
+            museumPoints = withContext(Dispatchers.IO) { pointRegionsRepository.loadNamedPoints("poi-museum") }
         }
     }
 
@@ -155,6 +161,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             "poi-amusementparks" -> amusementParkRegions[name]
             "poi-zoo" -> zooRegions[name]
             "poi-aquarium" -> aquariumRegions[name]
+            "poi-museum" -> museumRegions[name]
             else -> null
         } ?: return
         matchingTimerJob?.cancel()
@@ -221,6 +228,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val loc = _state.value.effectiveLocation ?: return null
         if (aquariumPoints.isEmpty()) return null
         return pointRegionsRepository.nearestName(loc, aquariumPoints)
+    }
+
+    /** Returns the name of the nearest museum to the current location, or null. */
+    fun nearestMuseumToMe(): String? {
+        val loc = _state.value.effectiveLocation ?: return null
+        if (museumPoints.isEmpty()) return null
+        return pointRegionsRepository.nearestName(loc, museumPoints)
     }
 
     fun selectStation(station: Station?) {
