@@ -448,9 +448,9 @@ private fun HamburgerMenu(
                     menuExpanded = true
                 }
             },
-            modifier = Modifier.size(96.dp),
+            modifier = Modifier.size(48.dp),
         ) {
-            Icon(Icons.Default.Menu, contentDescription = "Menu", modifier = Modifier.size(48.dp))
+            Icon(Icons.Default.Menu, contentDescription = "Menu", modifier = Modifier.size(24.dp))
         }
         DropdownMenu(
             expanded = menuExpanded,
