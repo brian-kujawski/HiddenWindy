@@ -78,12 +78,22 @@ data class MeasuringPOIConfirmed(
     val confirmedAt: Long = System.currentTimeMillis(),
 )
 
+/** A Photos question that has been cast and is awaiting the hider's photo. */
+data class PhotosConfirmed(
+    val subject: String,
+    val questionText: String,
+    val timerStarted: Boolean = false,
+    val remainingSeconds: Int = 10 * 60,
+    val confirmedAt: Long = System.currentTimeMillis(),
+)
+
 /** Stable keys for each top-level question, matching the Questions menu items. */
 object QuestionCategory {
     const val MATCHING = "MATCHING"
     const val MEASURING = "MEASURING"
     const val RADAR = "RADAR"
     const val THERMOMETER = "THERMOMETER"
+    const val PHOTOS = "PHOTOS"
 }
 
 /** A question asked this game, shown in the History list (e.g. "Radar, 5 mi"). */
@@ -121,6 +131,7 @@ data class GameState(
     val thermometerActive: ThermometerActive? = null,
     val matchingConfirmed: MatchingConfirmed? = null,
     val measuringPOIConfirmed: MeasuringPOIConfirmed? = null,
+    val photosConfirmed: PhotosConfirmed? = null,
     val askedQuestions: List<AskedQuestion> = emptyList(),
     val activePOILayer: POILayerState? = null,
     /**

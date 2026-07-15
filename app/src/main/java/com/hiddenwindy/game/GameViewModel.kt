@@ -46,6 +46,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var thermometerTimerJob: Job? = null
     private var matchingTimerJob: Job? = null
     private var measuringPOITimerJob: Job? = null
+    private var photosTimerJob: Job? = null
 
     private var lineRegions: Map<String, List<Polygon>> = emptyMap()
     private var linesByName: Map<String, List<LineString>> = emptyMap()
@@ -422,6 +423,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         matchingTimerJob = null
         measuringPOITimerJob?.cancel()
         measuringPOITimerJob = null
+        photosTimerJob?.cancel()
+        photosTimerJob = null
         _state.update { GameState(stations = it.stations, myLocation = it.myLocation) }
     }
 
@@ -979,6 +982,46 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 askedQuestions = it.askedQuestions + record,
             )
         }
+    }
+
+    /** Records a Photos question and shows the copy+timer panel on the map. */
+    fun confirmPhotos(subject: String, questionText: String) {
+        val record = AskedQuestion(
+            category = QuestionCategory.PHOTOS,
+            label = "Photos",
+            detail = subject,
+        )
+        _state.update { state ->
+            state.copy(
+                photosConfirmed = PhotosConfirmed(subject = subject, questionText = questionText),
+                askedQuestions = state.askedQuestions + record,
+            )
+        }
+    }
+
+    /** Starts the 10-minute countdown after the photo request has been sent to the hider. */
+    fun startPhotosTimer() {
+        if (_state.value.photosConfirmed?.timerStarted == true) return
+        _state.update { state ->
+            state.copy(photosConfirmed = state.photosConfirmed?.copy(timerStarted = true))
+        }
+        photosTimerJob = viewModelScope.launch {
+            while (true) {
+                delay(1_000)
+                val remaining = _state.value.photosConfirmed?.remainingSeconds ?: break
+                if (remaining <= 0) break
+                _state.update { state ->
+                    state.copy(photosConfirmed = state.photosConfirmed?.copy(remainingSeconds = remaining - 1))
+                }
+            }
+        }
+    }
+
+    /** Dismisses the Photos confirm panel without a resolve step. */
+    fun dismissPhotos() {
+        photosTimerJob?.cancel()
+        photosTimerJob = null
+        _state.update { it.copy(photosConfirmed = null) }
     }
 
     override fun onCleared() {

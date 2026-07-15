@@ -163,12 +163,15 @@ fun QuestionsModal(
     askedThermometerLabels: Set<String> = emptySet(),
     askedMatchingDetails: Set<String> = emptySet(),
     askedMeasuringDetails: Set<String> = emptySet(),
+    askedPhotoSubjects: Set<String> = emptySet(),
+    onPhotoSelected: (subject: String, questionText: String) -> Unit = { _, _ -> },
 ) {
     var screen by remember { mutableStateOf(if (startOnRadar) QuestionsScreen.RADAR else QuestionsScreen.HOME) }
     var matchCategory by remember { mutableStateOf<MatchCategory?>(null) }
     var matchQuestion by remember { mutableStateOf<MatchQuestion?>(null) }
     var measureCategory by remember { mutableStateOf<MeasureCategory?>(null) }
     var measureQuestion by remember { mutableStateOf<MeasureQuestion?>(null) }
+    var photoSubject by remember { mutableStateOf<String?>(null) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -193,11 +196,13 @@ fun QuestionsModal(
                                 screen == QuestionsScreen.MATCHING && matchCategory != null -> matchCategory = null
                                 screen == QuestionsScreen.MEASURING && measureQuestion != null -> measureQuestion = null
                                 screen == QuestionsScreen.MEASURING && measureCategory != null -> measureCategory = null
+                                screen == QuestionsScreen.PHOTOS && photoSubject != null -> photoSubject = null
                                 else -> {
                                     matchCategory = null
                                     matchQuestion = null
                                     measureCategory = null
                                     measureQuestion = null
+                                    photoSubject = null
                                     screen = QuestionsScreen.HOME
                                 }
                             }
@@ -214,6 +219,8 @@ fun QuestionsModal(
                                 matchQuestion?.displayName ?: matchCategory?.displayName ?: screen.displayName
                             screen == QuestionsScreen.MEASURING ->
                                 measureQuestion?.displayName ?: measureCategory?.displayName ?: screen.displayName
+                            screen == QuestionsScreen.PHOTOS ->
+                                photoSubject ?: screen.displayName
                             else -> screen.displayName
                         },
                         style = MaterialTheme.typography.titleLarge,
@@ -233,6 +240,7 @@ fun QuestionsModal(
                           askedThermometerLabels = askedThermometerLabels,
                           askedMatchingDetails = askedMatchingDetails,
                           askedMeasuringDetails = askedMeasuringDetails,
+                          askedPhotoSubjects = askedPhotoSubjects,
                           onSelect = { screen = it },
                       )
                 } else if (screen == QuestionsScreen.MATCHING) {
@@ -258,6 +266,13 @@ fun QuestionsModal(
                         onSelectQuestion = { measureQuestion = it },
                         onMeasuringPOIConfirm = onMeasuringPOIConfirm,
                     )
+                } else if (screen == QuestionsScreen.PHOTOS) {
+                    PhotosNav(
+                        subject = photoSubject,
+                        askedPhotoSubjects = askedPhotoSubjects,
+                        onSelectSubject = { photoSubject = it },
+                        onPhotoConfirm = { subject, questionText -> onPhotoSelected(subject, questionText) },
+                    )
                 } else {
                     QuestionsSubmenu(
                         screen = screen,
@@ -279,13 +294,15 @@ private fun QuestionsGrid(
     askedThermometerLabels: Set<String>,
     askedMatchingDetails: Set<String>,
     askedMeasuringDetails: Set<String>,
+    askedPhotoSubjects: Set<String>,
     onSelect: (QuestionsScreen) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         TOP_LEVEL_SCREENS.chunked(2).forEach { rowItems ->
+            val isSingle = rowItems.size == 1
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = if (isSingle) Arrangement.Center else Arrangement.spacedBy(8.dp),
             ) {
                 rowItems.forEach { option ->
                     val enabled = when (option) {
@@ -297,12 +314,14 @@ private fun QuestionsGrid(
                             MatchQuestion.entries.any { q -> q.dataset != null && q.displayName !in askedMatchingDetails }
                         QuestionsScreen.MEASURING ->
                             MeasureQuestion.entries.any { q -> q.dataset != null && q.displayName !in askedMeasuringDetails }
+                        QuestionsScreen.PHOTOS ->
+                            PHOTO_SUBJECTS.any { it !in askedPhotoSubjects }
                         else -> option.name !in askedCategories
                     }
                     Button(
                         onClick = { onSelect(option) },
                         enabled = enabled,
-                        modifier = Modifier.weight(1f),
+                        modifier = if (isSingle) Modifier.fillMaxWidth(0.5f) else Modifier.weight(1f),
                     ) {
                         Text(
                             text = option.displayName,
@@ -312,10 +331,6 @@ private fun QuestionsGrid(
                             textAlign = TextAlign.Center,
                         )
                     }
-                }
-                // Pad incomplete rows
-                repeat(2 - rowItems.size) {
-                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -340,6 +355,86 @@ private fun QuestionsSubmenu(
             askedThermometerLabels = askedThermometerLabels,
         )
         else -> ComingSoon(screen.displayName)
+    }
+}
+
+/** Photos navigation: subject list -> the question/timer UI. */
+@Composable
+private fun PhotosNav(
+    subject: String?,
+    askedPhotoSubjects: Set<String>,
+    onSelectSubject: (String) -> Unit,
+    onPhotoConfirm: (subject: String, questionText: String) -> Unit,
+) {
+    when {
+        subject != null -> FeaturePhotosSubmenu(
+            subject = subject,
+            onConfirm = { questionText -> onPhotoConfirm(subject, questionText) },
+        )
+        else -> {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                        Text(text = "COST: Draw 1", style = MaterialTheme.typography.labelLarge)
+                        Text(text = "TIME: 10 Minutes", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+
+                HorizontalDivider()
+
+                Text(
+                    text = "Send a photo of ___",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+
+                val disabledSubjects = PHOTO_SUBJECTS.mapIndexedNotNull { index, s ->
+                    if (s in askedPhotoSubjects) index else null
+                }.toSet()
+                ButtonColumn(
+                    labels = PHOTO_SUBJECTS,
+                    disabledIndices = disabledSubjects,
+                    onSelect = { index -> onSelectSubject(PHOTO_SUBJECTS[index]) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeaturePhotosSubmenu(
+    subject: String,
+    onConfirm: (questionText: String) -> Unit,
+) {
+    var asked by remember { mutableStateOf(false) }
+    val questionText = PHOTO_QUESTION_TEXTS[subject] ?: "Send a photo of ${subject.lowercase()}."
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text(
+                text = questionText,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            )
+        }
+
+        Button(
+            onClick = {
+                asked = true
+                onConfirm(questionText)
+            },
+            enabled = !asked,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Ask")
+        }
     }
 }
 
@@ -654,6 +749,12 @@ private fun ThermometerSubmenu(
         }
     }
 }
+
+private val PHOTO_SUBJECTS = listOf("A Tree", "Sky", "You", "Street", "Tallest", "Building", "Park", "Platform")
+
+private val PHOTO_QUESTION_TEXTS: Map<String, String> = mapOf(
+    "A Tree" to "Send a photo of a tree. Must include the entire tree.",
+)
 
 private val RADAR_RADIUS_VALUES: Map<String, Double?> = mapOf(
     "1/4" to 0.25,

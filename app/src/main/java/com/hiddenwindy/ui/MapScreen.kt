@@ -167,6 +167,10 @@ fun MapScreen(
                     .filter { it.category == com.hiddenwindy.game.QuestionCategory.MEASURING }
                     .map { it.detail }
                     .toSet(),
+                askedPhotoSubjects = state.askedQuestions
+                    .filter { it.category == com.hiddenwindy.game.QuestionCategory.PHOTOS }
+                    .map { it.detail }
+                    .toSet(),
                 onMatchingConfirm = { dataset, featureLabel, seekerNearestName ->
                     val stationName = if (dataset == "station_name_length") viewModel.nearestStationNameToMe() else null
                     viewModel.confirmMatching(dataset, featureLabel, seekerNearestName, stationName)
@@ -182,6 +186,11 @@ fun MapScreen(
                 },
                 onThermometerSelected = { label, distance ->
                     viewModel.setThermometerPending(label, distance)
+                    showQuestionsModal = false
+                    questionsStartOnRadar = false
+                },
+                onPhotoSelected = { subject, questionText ->
+                    viewModel.confirmPhotos(subject, questionText)
                     showQuestionsModal = false
                     questionsStartOnRadar = false
                 },
@@ -265,6 +274,18 @@ fun MapScreen(
             )
         }
 
+        state.photosConfirmed?.let { confirmed ->
+            PhotosConfirmPanel(
+                confirmed = confirmed,
+                onStartTimer = viewModel::startPhotosTimer,
+                onDismiss = viewModel::dismissPhotos,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(12.dp),
+            )
+        }
+
         state.thermometerPending?.let { pending ->
             ThermometerStartPanel(
                 label = pending.label,
@@ -329,7 +350,7 @@ fun MapScreen(
             }
         }
 
-        if (state.radarConfirmed == null && state.thermometerPending == null && state.thermometerActive == null && state.matchingConfirmed == null && state.measuringPOIConfirmed == null) {
+        if (state.radarConfirmed == null && state.thermometerPending == null && state.thermometerActive == null && state.matchingConfirmed == null && state.measuringPOIConfirmed == null && state.photosConfirmed == null) {
             // Layers floating button — bottom-right, above the ControlPanel
             FilledTonalButton(
                 onClick = { showLayersModal = true },
