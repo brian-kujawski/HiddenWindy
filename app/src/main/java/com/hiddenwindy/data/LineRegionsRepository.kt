@@ -65,6 +65,36 @@ class LineRegionsRepository(private val context: Context) {
         return best
     }
 
+    /**
+     * Returns all line names within [thresholdKm] of the nearest line to [point], sorted
+     * alphabetically. Returns a single element in the common case; multiple elements when lines
+     * share track (e.g. the Loop, where Green/Brown/Orange/Pink/Purple run together).
+     */
+    fun nearestLineNames(
+        point: Point,
+        linesByName: Map<String, List<LineString>>,
+        thresholdKm: Double = 0.015,
+    ): List<String> {
+        var bestDist = Double.MAX_VALUE
+        val bestDistByName = HashMap<String, Double>()
+        for ((name, lines) in linesByName) {
+            for (line in lines) {
+                val coords = line.coordinates()
+                if (coords.size < 2) continue
+                val snapped = TurfMisc.nearestPointOnLine(point, coords, TurfConstants.UNIT_KILOMETERS)
+                val dist = snapped.getNumberProperty("dist")?.toDouble() ?: continue
+                val prev = bestDistByName[name]
+                if (prev == null || dist < prev) bestDistByName[name] = dist
+                if (dist < bestDist) bestDist = dist
+            }
+        }
+        if (bestDist == Double.MAX_VALUE) return emptyList()
+        return bestDistByName.entries
+            .filter { (_, dist) -> dist <= bestDist + thresholdKm }
+            .map { it.key }
+            .sorted()
+    }
+
     private fun readAsset(name: String): String =
         context.assets.open(name).bufferedReader().use { it.readText() }
 

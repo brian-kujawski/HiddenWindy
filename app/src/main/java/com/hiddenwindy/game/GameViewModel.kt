@@ -191,6 +191,16 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /**
+     * Returns all line names within the co-location threshold of the nearest line.
+     * Multiple entries indicate shared-track ambiguity requiring user disambiguation.
+     */
+    fun nearestLineNamesToMe(): List<String> {
+        val loc = _state.value.effectiveLocation ?: return emptyList()
+        if (linesByName.isEmpty()) return emptyList()
+        return lineRegionsRepository.nearestLineNames(loc, linesByName)
+    }
+
+    /**
      * Answers the Matching question for the line nearest to my location. [same] = true shades
      * everything outside that line's region; false shades the region itself.
      */

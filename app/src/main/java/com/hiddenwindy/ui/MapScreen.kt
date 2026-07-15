@@ -149,6 +149,7 @@ fun MapScreen(
                         else -> null
                     }
                 },
+                nearestLineNames = { viewModel.nearestLineNamesToMe() },
                 matchingEnabled = state.effectiveLocation != null,
                 askedCategories = state.askedQuestions.map { it.category }.toSet(),
                 askedRadarLabels = state.askedQuestions

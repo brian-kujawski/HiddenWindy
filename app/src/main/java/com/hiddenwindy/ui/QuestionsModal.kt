@@ -152,6 +152,7 @@ fun QuestionsModal(
     startOnRadar: Boolean = false,
     onRadarRadiusSelected: (label: String, radiusMiles: Double) -> Unit = { _, _ -> },
     nearestFeatureName: (dataset: String) -> String? = { null },
+    nearestLineNames: () -> List<String> = { emptyList() },
     matchingEnabled: Boolean = false,
     onMatchingConfirm: (dataset: String, featureLabel: String, seekerNearestName: String) -> Unit = { _, _, _ -> },
     onThermometerSelected: (label: String, distanceMiles: Double) -> Unit = { _, _ -> },
@@ -169,6 +170,7 @@ fun QuestionsModal(
     var screen by remember { mutableStateOf(if (startOnRadar) QuestionsScreen.RADAR else QuestionsScreen.HOME) }
     var matchCategory by remember { mutableStateOf<MatchCategory?>(null) }
     var matchQuestion by remember { mutableStateOf<MatchQuestion?>(null) }
+    var transitLineChoice by remember { mutableStateOf<String?>(null) }
     var measureCategory by remember { mutableStateOf<MeasureCategory?>(null) }
     var measureQuestion by remember { mutableStateOf<MeasureQuestion?>(null) }
     var photoSubject by remember { mutableStateOf<String?>(null) }
@@ -192,7 +194,8 @@ fun QuestionsModal(
                     if (screen != QuestionsScreen.HOME) {
                         IconButton(onClick = {
                             when {
-                                screen == QuestionsScreen.MATCHING && matchQuestion != null -> matchQuestion = null
+                                screen == QuestionsScreen.MATCHING && transitLineChoice != null -> transitLineChoice = null
+                                screen == QuestionsScreen.MATCHING && matchQuestion != null -> { matchQuestion = null; transitLineChoice = null }
                                 screen == QuestionsScreen.MATCHING && matchCategory != null -> matchCategory = null
                                 screen == QuestionsScreen.MEASURING && measureQuestion != null -> measureQuestion = null
                                 screen == QuestionsScreen.MEASURING && measureCategory != null -> measureCategory = null
@@ -200,6 +203,7 @@ fun QuestionsModal(
                                 else -> {
                                     matchCategory = null
                                     matchQuestion = null
+                                    transitLineChoice = null
                                     measureCategory = null
                                     measureQuestion = null
                                     photoSubject = null
@@ -248,6 +252,9 @@ fun QuestionsModal(
                         category = matchCategory,
                         question = matchQuestion,
                         nearestFeatureName = nearestFeatureName,
+                        nearestLineNames = nearestLineNames,
+                        transitLineChoice = transitLineChoice,
+                        onTransitLineChosen = { transitLineChoice = it },
                         matchingEnabled = matchingEnabled,
                         askedMatchingDetails = askedMatchingDetails,
                         onSelectCategory = { matchCategory = it },
@@ -444,6 +451,9 @@ private fun MatchingNav(
     category: MatchCategory?,
     question: MatchQuestion?,
     nearestFeatureName: (dataset: String) -> String?,
+    nearestLineNames: () -> List<String>,
+    transitLineChoice: String?,
+    onTransitLineChosen: (String) -> Unit,
     matchingEnabled: Boolean,
     askedMatchingDetails: Set<String>,
     onSelectCategory: (MatchCategory) -> Unit,
@@ -451,14 +461,43 @@ private fun MatchingNav(
     onMatchingConfirm: (dataset: String, featureLabel: String, seekerNearestName: String) -> Unit,
 ) {
     when {
-        // Any question with a built dataset uses the generic feature-matching submenu.
-        question != null && question.dataset != null -> FeatureMatchingSubmenu(
-            featureLabel = question.displayName,
-            nearestFeatureName = nearestFeatureName(question.dataset),
-            nearestStationName = if (question == MatchQuestion.STATION_NAME_LENGTH) nearestFeatureName("station_name") else null,
-            enabled = matchingEnabled,
-            onConfirm = { nearestName -> onMatchingConfirm(question.dataset, question.displayName, nearestName) },
-        )
+        question != null && question.dataset != null -> {
+            // Transit Line: check for shared-track ambiguity before showing the confirm screen.
+            if (question == MatchQuestion.TRANSIT_LINE && transitLineChoice == null) {
+                val candidates = nearestLineNames()
+                if (candidates.size > 1) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Surface(
+                            shape = MaterialTheme.shapes.medium,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                text = "Multiple lines share this track. Which line are you asking about?",
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            )
+                        }
+                        ButtonColumn(
+                            labels = candidates,
+                            onSelect = { index -> if (matchingEnabled) onTransitLineChosen(candidates[index]) },
+                        )
+                    }
+                    return
+                }
+            }
+            val effectiveName = when {
+                question == MatchQuestion.TRANSIT_LINE && transitLineChoice != null -> transitLineChoice
+                else -> nearestFeatureName(question.dataset)
+            }
+            FeatureMatchingSubmenu(
+                featureLabel = question.displayName,
+                nearestFeatureName = effectiveName,
+                nearestStationName = if (question == MatchQuestion.STATION_NAME_LENGTH) nearestFeatureName("station_name") else null,
+                enabled = matchingEnabled,
+                onConfirm = { nearestName -> onMatchingConfirm(question.dataset, question.displayName, nearestName) },
+            )
+        }
         question != null -> ComingSoon(question.displayName)
         category != null -> {
             val questions = MatchQuestion.entries.filter { it.category == category }
