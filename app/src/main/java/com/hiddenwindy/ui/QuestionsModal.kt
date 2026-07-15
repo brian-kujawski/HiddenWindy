@@ -750,10 +750,17 @@ private fun ThermometerSubmenu(
     }
 }
 
-private val PHOTO_SUBJECTS = listOf("A Tree", "Sky", "You", "Street", "Tallest", "Building", "Park", "Platform")
+private val PHOTO_SUBJECTS = listOf("A Tree", "The Sky", "You", "Widest Street", "Tallest Structure", "Any Building", "A Park", "Train Platform")
 
 private val PHOTO_QUESTION_TEXTS: Map<String, String> = mapOf(
     "A Tree" to "Send a photo of a tree. Must include the entire tree.",
+    "The Sky" to "Send a photo of the sky. Place phone on ground, shoot directly up.",
+    "You" to "Send a photo of yourself. Selfie mode. Arm parallel to the ground, fully extended.",
+    "Widest Street" to "Send a photo of the widest street in your zone. Must include both sides of the street.",
+    "Tallest Structure" to "Send a photo of the tallest structure in your sightline. Must include top and both sides. The top must be in the top 1/3 of the frame.",
+    "Any Building" to "Send a photo of any building visible from the station. Must stand directly outside an entrance. Must include roof, both sides, and the top in top 1/3 of the frame.",
+    "A Park" to "Send a photo of a park. No zoom, phone perpendicular to ground. Must stand 5\u2019 from any obstruction.",
+    "Train Platform" to "Send a photo of your train platform. Must include a 5\u2019 x 5\u2019 section with three distinct elements.",
 )
 
 private val RADAR_RADIUS_VALUES: Map<String, Double?> = mapOf(
