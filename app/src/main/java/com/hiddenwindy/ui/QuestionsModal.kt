@@ -789,7 +789,7 @@ private fun ThermometerSubmenu(
     }
 }
 
-private val PHOTO_SUBJECTS = listOf("A Tree", "The Sky", "You", "Widest Street", "Tallest Structure", "Any Building", "A Park", "Train Platform")
+private val PHOTO_SUBJECTS = listOf("A Tree", "The Sky", "You", "Widest Street", "Tallest Structure", "Any Building", "A Park", "Train Platform", "Tallest Building", "Trace Street", "Two Buildings", "Restaurant Interior", "Grocery Aisle", "Place of Worship")
 
 private val PHOTO_QUESTION_TEXTS: Map<String, String> = mapOf(
     "A Tree" to "Send a photo of a tree. Must include the entire tree.",
@@ -800,6 +800,12 @@ private val PHOTO_QUESTION_TEXTS: Map<String, String> = mapOf(
     "Any Building" to "Send a photo of any building visible from the station. Must stand directly outside an entrance. Must include roof, both sides, and the top in top 1/3 of the frame.",
     "A Park" to "Send a photo of a park. No zoom, phone perpendicular to ground. Must stand 5\u2019 from any obstruction.",
     "Train Platform" to "Send a photo of your train platform. Must include a 5\u2019 x 5\u2019 section with three distinct elements.",
+    "Tallest Building" to "Send a photo of the tallest building visible from your station, from your perspective. Must stand directly outside station entrance. Must include roof, both sides, with the top of the building in the top 1/3 of frame.",
+    "Trace Street" to "Send a photo of a trace of your nearest street/path. Street/path must be visible on mapping app. Trace intersection to intersection.",
+    "Two Buildings" to "Send a photo of two buildings. Must include bottom and up to four stories.",
+    "Restaurant Interior" to "Send a photo of a restaurant interior. No zoom. Must take picture through the window from outside the restaurant.",
+    "Grocery Aisle" to "Send a photo of a grocery store aisle. No zoom. Stand at the end of the aisle, shoot directly down.",
+    "Place of Worship" to "Send a photo of a place of worship. Must include a 5\u2019 x 5\u2019 section with three distinct elements.",
 )
 
 private val RADAR_RADIUS_VALUES: Map<String, Double?> = mapOf(
