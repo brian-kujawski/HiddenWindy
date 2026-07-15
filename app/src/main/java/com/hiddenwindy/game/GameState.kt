@@ -24,6 +24,7 @@ data class RadarConfirmed(
 
 /** The permanent result of a resolved Radar cast. */
 data class RadarResult(
+    val id: String,
     val center: Point,
     val radiusMiles: Double,
     /** True = hider IS inside the circle; False = hider is NOT inside. */
@@ -104,6 +105,10 @@ data class AskedQuestion(
     val label: String,
     /** Specifics, e.g. "Train Line" or "5 mi". */
     val detail: String,
+    /** ID of the [Eliminator] (or [RadarResult]) created by this question; null for Photos. */
+    val eliminatorId: String? = null,
+    /** When true the question's map overlay is suppressed and it is available to ask again. */
+    val disabled: Boolean = false,
 )
 
 /** A dataset being rendered as point markers on the map (see Layers feature). */
@@ -248,8 +253,29 @@ data class GameState(
         return eliminators.flatMap { it.outRegions(context) }
     }
 
-    /** Every "out of play" polygon from all sources (rules + radar results); may overlap. */
-    fun allOutRegions(): List<Polygon> = outRegions() + radarResultPolygons
+    /** IDs of eliminators/radar-results whose questions have been disabled in History. */
+    val disabledEliminatorIds: Set<String>
+        get() = askedQuestions.filter { it.disabled }.mapNotNull { it.eliminatorId }.toSet()
+
+    /** Every "out of play" polygon from all sources (rules + radar results); may overlap.
+     *  Eliminators and radar results belonging to disabled questions are excluded. */
+    fun allOutRegions(): List<Polygon> {
+        val disabled = disabledEliminatorIds
+        val context = gameContext()
+        val fromEliminators = eliminators
+            .filter { it.id !in disabled }
+            .flatMap { it.outRegions(context) }
+        val fromRadar = radarResults
+            .filter { it.id !in disabled }
+            .mapNotNull { result ->
+                if (result.hiderIsInside) {
+                    ZoneGeometry.hidingZoneMask(listOf(result.center), result.radiusMiles)
+                } else {
+                    ZoneGeometry.hidingZoneCircle(result.center, result.radiusMiles)
+                }
+            }
+        return fromEliminators + fromRadar
+    }
 
 }
 

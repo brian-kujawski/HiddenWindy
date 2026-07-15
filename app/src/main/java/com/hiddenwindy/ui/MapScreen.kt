@@ -151,25 +151,25 @@ fun MapScreen(
                 },
                 nearestLineNames = { viewModel.nearestLineNamesToMe() },
                 matchingEnabled = state.effectiveLocation != null,
-                askedCategories = state.askedQuestions.map { it.category }.toSet(),
+                askedCategories = state.askedQuestions.filter { !it.disabled }.map { it.category }.toSet(),
                 askedRadarLabels = state.askedQuestions
-                    .filter { it.category == com.hiddenwindy.game.QuestionCategory.RADAR }
+                    .filter { it.category == com.hiddenwindy.game.QuestionCategory.RADAR && !it.disabled }
                     .map { it.detail.removeSuffix(" mi") }
                     .toSet(),
                 askedThermometerLabels = state.askedQuestions
-                    .filter { it.category == com.hiddenwindy.game.QuestionCategory.THERMOMETER }
+                    .filter { it.category == com.hiddenwindy.game.QuestionCategory.THERMOMETER && !it.disabled }
                     .map { it.detail.substringBefore(", ") }
                     .toSet(),
                 askedMatchingDetails = state.askedQuestions
-                    .filter { it.category == com.hiddenwindy.game.QuestionCategory.MATCHING }
+                    .filter { it.category == com.hiddenwindy.game.QuestionCategory.MATCHING && !it.disabled }
                     .map { it.detail }
                     .toSet(),
                 askedMeasuringDetails = state.askedQuestions
-                    .filter { it.category == com.hiddenwindy.game.QuestionCategory.MEASURING }
+                    .filter { it.category == com.hiddenwindy.game.QuestionCategory.MEASURING && !it.disabled }
                     .map { it.detail }
                     .toSet(),
                 askedPhotoSubjects = state.askedQuestions
-                    .filter { it.category == com.hiddenwindy.game.QuestionCategory.PHOTOS }
+                    .filter { it.category == com.hiddenwindy.game.QuestionCategory.PHOTOS && !it.disabled }
                     .map { it.detail }
                     .toSet(),
                 onMatchingConfirm = { dataset, featureLabel, seekerNearestName ->
@@ -206,6 +206,7 @@ fun MapScreen(
             HistoryModal(
                 questions = state.askedQuestions,
                 onDismiss = { showHistoryModal = false },
+                onToggleDisabled = { viewModel.toggleQuestionDisabled(it) },
             )
         }
 

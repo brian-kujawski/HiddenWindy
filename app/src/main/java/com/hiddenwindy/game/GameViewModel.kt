@@ -100,7 +100,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         // precomputed result. Timer-only state copies keep the same list refs, so this stays idle.
         viewModelScope.launch {
             _state
-                .map { it.eliminators to it.radarResults }
+                .map { Triple(it.eliminators, it.radarResults, it.disabledEliminatorIds) }
                 .distinctUntilChanged()
                 .collectLatest {
                     val snapshot = _state.value
@@ -268,6 +268,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             category = QuestionCategory.MATCHING,
             label = "Matching",
             detail = confirmed.featureLabel,
+            eliminatorId = eliminator.id,
         )
         _state.update {
             it.copy(
@@ -624,6 +625,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             category = QuestionCategory.THERMOMETER,
             label = "Thermometer",
             detail = "${active.label}, ${if (hotter) "hotter" else "colder"}",
+            eliminatorId = eliminator.id,
         )
         _state.update {
             it.copy(
@@ -641,11 +643,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun confirmRadar() {
         val pending = _state.value.radarPending ?: return
         val center = _state.value.questionOrigin ?: return
-        val record = AskedQuestion(
-            category = QuestionCategory.RADAR,
-            label = "Radar",
-            detail = "${pending.label} mi",
-        )
         _state.update { state ->
             state.copy(
                 radarPending = null,
@@ -657,7 +654,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     radiusMiles = pending.radiusMiles,
                     center = center,
                 ),
-                askedQuestions = state.askedQuestions + record,
             )
         }
     }
@@ -689,16 +685,25 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         timerJob?.cancel()
         timerJob = null
         val confirmed = _state.value.radarConfirmed ?: return
+        val resultId = "radar-${eliminatorCounter++}"
         val result = RadarResult(
+            id = resultId,
             center = confirmed.center,
             radiusMiles = confirmed.radiusMiles,
             hiderIsInside = hiderIsInside,
+        )
+        val record = AskedQuestion(
+            category = QuestionCategory.RADAR,
+            label = "Radar",
+            detail = "${confirmed.label} mi",
+            eliminatorId = resultId,
         )
         _state.update { state ->
             state.copy(
                 radarConfirmed = null,
                 adjustedLocation = null,
                 radarResults = state.radarResults + result,
+                askedQuestions = state.askedQuestions + record,
             )
         }
     }
@@ -984,12 +989,24 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             category = QuestionCategory.MEASURING,
             label = "Measuring",
             detail = confirmed.featureLabel,
+            eliminatorId = eliminator.id,
         )
         _state.update {
             it.copy(
                 measuringPOIConfirmed = null,
                 eliminators = it.eliminators + eliminator,
                 askedQuestions = it.askedQuestions + record,
+            )
+        }
+    }
+
+    /** Toggles the disabled state of a history entry, suppressing or restoring its map overlay. */
+    fun toggleQuestionDisabled(question: AskedQuestion) {
+        _state.update { state ->
+            state.copy(
+                askedQuestions = state.askedQuestions.map {
+                    if (it === question) it.copy(disabled = !it.disabled) else it
+                },
             )
         }
     }
@@ -1024,6 +1041,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     state.copy(photosConfirmed = state.photosConfirmed?.copy(remainingSeconds = remaining - 1))
                 }
             }
+        }
+    }
+
+    /** Toggles the disabled state of a history entry, suppressing or restoring its map overlay. */
+    fun toggleQuestionDisabled(question: AskedQuestion) {
+        _state.update { state ->
+            state.copy(
+                askedQuestions = state.askedQuestions.map {
+                    if (it === question) it.copy(disabled = !it.disabled) else it
+                },
+            )
         }
     }
 
