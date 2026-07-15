@@ -65,6 +65,7 @@ fun MapScreen(
     var questionsStartOnRadar by remember { mutableStateOf(false) }
     var showHistoryModal by remember { mutableStateOf(false) }
     var showLayersModal by remember { mutableStateOf(false) }
+    var showRulesModal by remember { mutableStateOf(false) }
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -109,6 +110,7 @@ fun MapScreen(
                     showQuestionsModal = true
                 },
                 onOpenHistory = { showHistoryModal = true },
+                onOpenRules = { showRulesModal = true },
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(4.dp),
@@ -208,6 +210,10 @@ fun MapScreen(
                 onDismiss = { showHistoryModal = false },
                 onToggleDisabled = { viewModel.toggleQuestionDisabled(it) },
             )
+        }
+
+        if (showRulesModal) {
+            RulesModal(onDismiss = { showRulesModal = false })
         }
 
         if (showLayersModal) {
@@ -391,6 +397,7 @@ private fun HamburgerMenu(
     onToggleSpoofLocation: () -> Unit,
     onOpenQuestionsMenu: () -> Unit,
     onOpenHistory: () -> Unit,
+    onOpenRules: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -455,7 +462,7 @@ private fun HamburgerMenu(
             )
             DropdownMenuItem(
                 text = { Text("Rules") },
-                onClick = { menuExpanded = false },
+                onClick = { menuExpanded = false; onOpenRules() },
             )
             DropdownMenuItem(
                 text = { Text("History") },
