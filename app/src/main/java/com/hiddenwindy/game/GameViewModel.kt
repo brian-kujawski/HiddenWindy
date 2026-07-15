@@ -9,18 +9,23 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.hiddenwindy.data.GameStateStore
 import com.hiddenwindy.data.LineRegionsRepository
 import com.hiddenwindy.data.NamedPoint
+import com.hiddenwindy.data.PendingLineEliminator
+import com.hiddenwindy.data.PendingWaterEliminator
 import com.hiddenwindy.data.PointRegionsRepository
 import com.hiddenwindy.data.Station
 import com.hiddenwindy.data.TransitRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
@@ -42,6 +47,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val lineRegionsRepository = LineRegionsRepository(application)
     private val pointRegionsRepository = PointRegionsRepository(application)
     private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(application)
+    private val gameStateStore = GameStateStore(application)
+
+    // Restored eliminators whose heavy source geometry (water grid / border polylines) hasn't
+    // finished loading yet; re-attached in injectDeferredEliminators() once it has.
+    private var pendingWaterEliminators: List<PendingWaterEliminator> = emptyList()
+    private var pendingLineEliminators: List<PendingLineEliminator> = emptyList()
     private var timerJob: Job? = null
     private var thermometerTimerJob: Job? = null
     private var matchingTimerJob: Job? = null
@@ -110,6 +121,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     _state.update { it.copy(eliminatorOverlay = dissolved) }
                 }
         }
+        restoreThenAutoSave()
         viewModelScope.launch {
             val stations = withContext(Dispatchers.IO) { repository.loadStations() }
             _state.update { it.copy(stations = stations) }
@@ -178,10 +190,107 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             internationalLine = withContext(Dispatchers.IO) { pointRegionsRepository.loadLineString("borders_international") }
 
             stateLine = withContext(Dispatchers.IO) { pointRegionsRepository.loadLineString("borders_state") }
+
+            injectDeferredEliminators()
         }
     }
 
     fun raw(): TransitRepository = repository
+
+    /**
+     * Restores the last saved game (if any) before wiring up the auto-saver, so a background
+     * process kill no longer wipes progress. The saver is started only after the snapshot has
+     * been applied, so the empty initial state can't clobber the file.
+     */
+    @OptIn(FlowPreview::class)
+    private fun restoreThenAutoSave() {
+        viewModelScope.launch {
+            val restored = withContext(Dispatchers.IO) { gameStateStore.load() }
+            if (restored != null) {
+                pendingWaterEliminators = restored.pendingWater
+                pendingLineEliminators = restored.pendingLines
+                eliminatorCounter = restored.nextEliminatorId
+                _state.update { current ->
+                    current.copy(
+                        eliminators = restored.eliminators,
+                        radarResults = restored.radarResults,
+                        askedQuestions = restored.askedQuestions,
+                        selectedStation = restored.selectedStation ?: current.selectedStation,
+                        hidingZoneVisible = restored.hidingZoneVisible,
+                        referencePoint = restored.referencePoint,
+                        lockedZone = restored.lockedZone,
+                        debugLocation = restored.debugLocation,
+                        spoofLocationActive = restored.spoofLocationActive,
+                        adjustedLocation = restored.adjustedLocation,
+                    )
+                }
+            }
+            _state
+                .map { it.saveKey() }
+                .distinctUntilChanged()
+                .debounce(SAVE_DEBOUNCE_MS)
+                .collectLatest {
+                    val snapshot = _state.value
+                    withContext(Dispatchers.IO) { gameStateStore.save(snapshot) }
+                }
+        }
+    }
+
+    /**
+     * Re-attaches restored eliminators whose heavy source geometry (the water distance grid, the
+     * coastline/county/border polylines) has just finished loading. Called at the end of the
+     * geometry-loading block; line eliminators still missing their polyline stay pending.
+     */
+    private fun injectDeferredEliminators() {
+        val additions = ArrayList<Eliminator>()
+        val grid = waterDistanceGrid
+        if (grid != null && pendingWaterEliminators.isNotEmpty()) {
+            pendingWaterEliminators.forEach { pw ->
+                additions.add(
+                    MeasuringWaterEliminator(
+                        id = pw.id,
+                        featureLabel = pw.featureLabel,
+                        grid = grid,
+                        distanceMiles = pw.distanceMiles,
+                        closer = pw.closer,
+                    )
+                )
+            }
+            pendingWaterEliminators = emptyList()
+        }
+        if (pendingLineEliminators.isNotEmpty()) {
+            val stillPending = ArrayList<PendingLineEliminator>()
+            pendingLineEliminators.forEach { pl ->
+                val coords = lineForId(pl.id)
+                if (coords != null) {
+                    additions.add(
+                        MeasuringCoastlineEliminator(
+                            id = pl.id,
+                            featureLabel = pl.featureLabel,
+                            coastline = coords,
+                            distanceMiles = pl.distanceMiles,
+                            closer = pl.closer,
+                        )
+                    )
+                } else {
+                    stillPending.add(pl)
+                }
+            }
+            pendingLineEliminators = stillPending
+        }
+        if (additions.isNotEmpty()) {
+            _state.update { it.copy(eliminators = it.eliminators + additions) }
+        }
+    }
+
+    /** The reloaded border polyline matching a restored line-band eliminator's id prefix, or null. */
+    private fun lineForId(id: String): List<Point>? = when {
+        id.startsWith("measuring-coastline") -> coastlineLine?.coordinates()
+        id.startsWith("measuring-county") -> countyLine?.coordinates()
+        id.startsWith("measuring-international") -> internationalLine?.coordinates()
+        id.startsWith("measuring-state") -> stateLine?.coordinates()
+        else -> null
+    }
 
     /** The line nearest to the current (real or debug) location, or null if unknown. */
     fun nearestLineToMe(): String? {
@@ -436,6 +545,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         measuringPOITimerJob = null
         photosTimerJob?.cancel()
         photosTimerJob = null
+        pendingWaterEliminators = emptyList()
+        pendingLineEliminators = emptyList()
+        gameStateStore.clear()
         _state.update { GameState(stations = it.stations, myLocation = it.myLocation) }
     }
 
@@ -709,6 +821,9 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     companion object {
+        /** Debounce window for the auto-saver so rapid state changes coalesce into one write. */
+        private const val SAVE_DEBOUNCE_MS = 750L
+
         /** Cloud Gate ("The Bean"), Millennium Park. */
         private val BEAN_LOCATION = Point.fromLngLat(-87.62332881571997, 41.88270578560553)
     }
@@ -1055,6 +1170,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         super.onCleared()
         fusedLocationClient.removeLocationUpdates(locationCallback)
         timerJob?.cancel()
+        // Best-effort flush of any change not yet written by the debounced auto-saver.
+        gameStateStore.save(_state.value)
     }
 
     private fun haversineMeters(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
@@ -1067,3 +1184,34 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
     }
 }
+
+/**
+ * The subset of [GameState] that the auto-saver persists. Used with distinctUntilChanged so the
+ * per-second countdown ticks (which touch only the in-flight *Confirmed panels) don't trigger a
+ * disk write — a save happens only when durable progress actually changes.
+ */
+private data class SaveKey(
+    val eliminators: List<Eliminator>,
+    val radarResults: List<RadarResult>,
+    val askedQuestions: List<AskedQuestion>,
+    val selectedStation: Station?,
+    val hidingZoneVisible: Boolean,
+    val referencePoint: Point?,
+    val lockedZone: Point?,
+    val debugLocation: Point?,
+    val spoofLocationActive: Boolean,
+    val adjustedLocation: Point?,
+)
+
+private fun GameState.saveKey() = SaveKey(
+    eliminators = eliminators,
+    radarResults = radarResults,
+    askedQuestions = askedQuestions,
+    selectedStation = selectedStation,
+    hidingZoneVisible = hidingZoneVisible,
+    referencePoint = referencePoint,
+    lockedZone = lockedZone,
+    debugLocation = debugLocation,
+    spoofLocationActive = spoofLocationActive,
+    adjustedLocation = adjustedLocation,
+)
