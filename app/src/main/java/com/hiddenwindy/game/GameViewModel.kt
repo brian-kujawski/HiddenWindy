@@ -1044,17 +1044,6 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    /** Toggles the disabled state of a history entry, suppressing or restoring its map overlay. */
-    fun toggleQuestionDisabled(question: AskedQuestion) {
-        _state.update { state ->
-            state.copy(
-                askedQuestions = state.askedQuestions.map {
-                    if (it === question) it.copy(disabled = !it.disabled) else it
-                },
-            )
-        }
-    }
-
     /** Dismisses the Photos confirm panel without a resolve step. */
     fun dismissPhotos() {
         photosTimerJob?.cancel()
