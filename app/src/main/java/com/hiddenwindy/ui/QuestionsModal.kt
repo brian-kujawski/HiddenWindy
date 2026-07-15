@@ -733,7 +733,7 @@ private fun FeatureMatchingSubmenu(
 private val RADAR_RADII = listOf("1/4", "1/2", "1", "3", "5", "10", "25", "???")
 
 /** Thermometer distance options and their mile values. */
-private val THERMOMETER_OPTIONS = listOf("1/2 Mile" to 0.5, "3 Miles" to 3.0)
+private val THERMOMETER_OPTIONS = listOf("1/2 Mile" to 0.5, "3 Miles" to 3.0, "10 Miles" to 10.0)
 
 @Composable
 private fun ThermometerSubmenu(
@@ -767,15 +767,15 @@ private fun ThermometerSubmenu(
             style = MaterialTheme.typography.bodyMedium,
         )
 
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             THERMOMETER_OPTIONS.forEach { (label, distanceMiles) ->
                 Button(
                     onClick = { onSelected(label, distanceMiles) },
                     enabled = label !in askedThermometerLabels,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(
                         text = label,
