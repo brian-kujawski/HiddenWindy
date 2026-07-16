@@ -58,6 +58,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private var matchingTimerJob: Job? = null
     private var measuringPOITimerJob: Job? = null
     private var photosTimerJob: Job? = null
+    private var tentaclesTimerJob: Job? = null
 
     private var lineRegions: Map<String, List<Polygon>> = emptyMap()
     private var linesByName: Map<String, List<LineString>> = emptyMap()
@@ -545,6 +546,8 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         measuringPOITimerJob = null
         photosTimerJob?.cancel()
         photosTimerJob = null
+        tentaclesTimerJob?.cancel()
+        tentaclesTimerJob = null
         pendingWaterEliminators = emptyList()
         pendingLineEliminators = emptyList()
         gameStateStore.clear()
@@ -1124,6 +1127,94 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 },
             )
         }
+    }
+
+    // ── Tentacles ────────────────────────────────────────────────────────────────────────────────
+
+    /** Returns how many POIs of [dataset] type are within 1 mile of the seeker's current location. */
+    fun nearbyTentaclePOICount(dataset: String): Int {
+        val loc = _state.value.effectiveLocation ?: return 0
+        return datasetPoints(dataset).count {
+            org.maplibre.turf.TurfMeasurement.distance(loc, it.location, TurfConstants.UNIT_MILES) <= 1.0
+        }
+    }
+
+    /**
+     * Confirms a Tentacles question: filters [dataset] POIs to those within 1 mile of the seeker
+     * and stores them in state. Does nothing if location is unavailable or no POIs are nearby.
+     */
+    fun confirmTentacles(dataset: String, featureLabel: String) {
+        val loc = _state.value.effectiveLocation ?: return
+        val nearbyPOIs = datasetPoints(dataset).filter {
+            org.maplibre.turf.TurfMeasurement.distance(loc, it.location, TurfConstants.UNIT_MILES) <= 1.0
+        }
+        if (nearbyPOIs.isEmpty()) return
+        _state.update { state ->
+            state.copy(
+                tentaclesConfirmed = TentaclesConfirmed(
+                    dataset = dataset,
+                    featureLabel = featureLabel,
+                    seekerLocation = loc,
+                    nearbyPOIs = nearbyPOIs,
+                )
+            )
+        }
+    }
+
+    /** Starts the 5-minute countdown after the Tentacles question has been sent to the hider. */
+    fun startTentaclesTimer() {
+        if (_state.value.tentaclesConfirmed?.timerStarted == true) return
+        _state.update { state ->
+            state.copy(tentaclesConfirmed = state.tentaclesConfirmed?.copy(timerStarted = true))
+        }
+        tentaclesTimerJob = viewModelScope.launch {
+            while (true) {
+                delay(1_000)
+                val remaining = _state.value.tentaclesConfirmed?.remainingSeconds ?: break
+                if (remaining <= 0) break
+                _state.update { state ->
+                    state.copy(tentaclesConfirmed = state.tentaclesConfirmed?.copy(remainingSeconds = remaining - 1))
+                }
+            }
+        }
+    }
+
+    /**
+     * Resolves the Tentacles question. [chosenPOIName] is the name of the nearby POI the hider
+     * reported being closest to. Creates a [TentaclesEliminator] that shades everything outside
+     * the intersection of the 1-mile circle and the chosen POI's runtime Voronoi cell.
+     */
+    fun resolveTentacles(chosenPOIName: String) {
+        tentaclesTimerJob?.cancel()
+        tentaclesTimerJob = null
+        val confirmed = _state.value.tentaclesConfirmed ?: return
+        val eliminator = TentaclesEliminator(
+            id = "tentacles-${eliminatorCounter++}",
+            featureLabel = confirmed.featureLabel,
+            seekerLocation = confirmed.seekerLocation,
+            nearbyPOIs = confirmed.nearbyPOIs,
+            chosenPOIName = chosenPOIName,
+        )
+        val record = AskedQuestion(
+            category = QuestionCategory.TENTACLES,
+            label = "Tentacles",
+            detail = confirmed.featureLabel,
+            eliminatorId = eliminator.id,
+        )
+        _state.update {
+            it.copy(
+                tentaclesConfirmed = null,
+                eliminators = it.eliminators + eliminator,
+                askedQuestions = it.askedQuestions + record,
+            )
+        }
+    }
+
+    /** Dismisses the Tentacles confirm panel without resolving. */
+    fun dismissTentacles() {
+        tentaclesTimerJob?.cancel()
+        tentaclesTimerJob = null
+        _state.update { it.copy(tentaclesConfirmed = null) }
     }
 
     /** Records a Photos question and shows the copy+timer panel on the map. */

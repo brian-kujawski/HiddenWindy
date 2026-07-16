@@ -1,11 +1,14 @@
 package com.hiddenwindy.map
 
+import com.hiddenwindy.data.NamedPoint
 import org.locationtech.jts.geom.Coordinate
+import org.locationtech.jts.geom.Envelope
 import org.locationtech.jts.geom.Geometry
 import org.locationtech.jts.geom.GeometryFactory
 import org.locationtech.jts.geom.LinearRing
 import org.locationtech.jts.geom.util.GeometryFixer
 import org.locationtech.jts.operation.union.UnaryUnionOp
+import org.locationtech.jts.triangulate.VoronoiDiagramBuilder
 import org.maplibre.geojson.Point
 import kotlin.math.cos
 import org.locationtech.jts.geom.Polygon as JtsPolygon
@@ -86,6 +89,73 @@ object PolygonUnion {
         fun unproject(c: Coordinate) = Coordinate(c.x / mPerDegLon, c.y / mPerDegLat)
         val backProjected = transformGeometry(buffered, ::unproject)
         return fromJts(backProjected)
+    }
+
+    /**
+     * Computes the Voronoi cell of the POI named [chosenName] within [nearbyPOIs], intersected
+     * with a [radiusMiles]-radius circle around [center]. Used for Tentacles questions, which
+     * partition the search space among only the POIs within 1 mile — not the precomputed global
+     * Voronoi regions.
+     *
+     * All computation is done in a local equirectangular metre frame (same as [bufferMiles]);
+     * the result is returned in longitude/latitude coordinates.
+     */
+    fun tentaclesValidRegion(
+        center: Point,
+        nearbyPOIs: List<NamedPoint>,
+        chosenName: String,
+        radiusMiles: Double = 1.0,
+    ): List<MlPolygon> {
+        if (nearbyPOIs.isEmpty()) return emptyList()
+        val chosen = nearbyPOIs.firstOrNull { it.name == chosenName } ?: return emptyList()
+
+        val centerLat = center.latitude()
+        val mPerDegLat = 110_540.0
+        val mPerDegLon = 111_320.0 * cos(Math.toRadians(centerLat))
+
+        fun project(p: Point): Coordinate = Coordinate(p.longitude() * mPerDegLon, p.latitude() * mPerDegLat)
+        fun unproject(c: Coordinate): Coordinate = Coordinate(c.x / mPerDegLon, c.y / mPerDegLat)
+
+        return runCatching {
+            val centerProj = project(center)
+            val oneMileMeters = radiusMiles * 1609.344
+            val circleJts = factory.createPoint(centerProj).buffer(oneMileMeters, 64)
+
+            if (nearbyPOIs.size == 1) {
+                // Only one nearby POI — the entire 1-mile circle is valid.
+                return@runCatching fromJts(circleJts)
+            }
+
+            val chosenProj = project(chosen.location)
+            val sitePts = nearbyPOIs.map { factory.createPoint(project(it.location)) }
+            val sites = factory.createGeometryCollection(sitePts.toTypedArray())
+
+            val clipEnv = Envelope(circleJts.envelopeInternal)
+            clipEnv.expandBy(oneMileMeters)
+
+            val builder = VoronoiDiagramBuilder()
+            builder.setSites(sites)
+            builder.setClipEnvelope(clipEnv)
+            val diagram = builder.getDiagram(factory)
+
+            // Find the Voronoi cell that contains the chosen POI's projected point.
+            val chosenPt = factory.createPoint(chosenProj)
+            var voronoiCell: Geometry? = null
+            for (i in 0 until diagram.numGeometries) {
+                val cell = diagram.getGeometryN(i)
+                if (cell.intersects(chosenPt)) {
+                    voronoiCell = cell
+                    break
+                }
+            }
+            if (voronoiCell == null) return@runCatching emptyList()
+
+            val validRegion = voronoiCell.intersection(circleJts)
+            if (validRegion.isEmpty) return@runCatching emptyList<MlPolygon>()
+
+            val unprojected = transformGeometry(validRegion, ::unproject)
+            fromJts(unprojected)
+        }.getOrElse { emptyList() }
     }
 
     /** Applies [fn] to every coordinate of [geometry], returning a new geometry. */

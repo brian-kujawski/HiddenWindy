@@ -197,6 +197,17 @@ fun MapScreen(
                     showQuestionsModal = false
                     questionsStartOnRadar = false
                 },
+                tentaclesEnabled = state.effectiveLocation != null,
+                tentaclePOICount = { dataset -> viewModel.nearbyTentaclePOICount(dataset) },
+                onTentaclesConfirm = { dataset, featureLabel ->
+                    viewModel.confirmTentacles(dataset, featureLabel)
+                    showQuestionsModal = false
+                    questionsStartOnRadar = false
+                },
+                askedTentaclesDetails = state.askedQuestions
+                    .filter { it.category == com.hiddenwindy.game.QuestionCategory.TENTACLES && !it.disabled }
+                    .map { it.detail }
+                    .toSet(),
                 onDismiss = {
                     showQuestionsModal = false
                     questionsStartOnRadar = false
@@ -294,6 +305,19 @@ fun MapScreen(
             )
         }
 
+        state.tentaclesConfirmed?.let { confirmed ->
+            TentaclesConfirmPanel(
+                confirmed = confirmed,
+                onStartTimer = viewModel::startTentaclesTimer,
+                onResolve = { name -> viewModel.resolveTentacles(name) },
+                onDismiss = viewModel::dismissTentacles,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(12.dp),
+            )
+        }
+
         state.thermometerPending?.let { pending ->
             ThermometerStartPanel(
                 label = pending.label,
@@ -358,7 +382,7 @@ fun MapScreen(
             }
         }
 
-        if (state.radarConfirmed == null && state.thermometerPending == null && state.thermometerActive == null && state.matchingConfirmed == null && state.measuringPOIConfirmed == null && state.photosConfirmed == null) {
+        if (state.radarConfirmed == null && state.thermometerPending == null && state.thermometerActive == null && state.matchingConfirmed == null && state.measuringPOIConfirmed == null && state.photosConfirmed == null && state.tentaclesConfirmed == null) {
             // Layers floating button — bottom-right, above the ControlPanel
             FilledTonalButton(
                 onClick = { showLayersModal = true },

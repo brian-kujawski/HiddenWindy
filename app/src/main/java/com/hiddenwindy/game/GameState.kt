@@ -88,6 +88,23 @@ data class PhotosConfirmed(
     val confirmedAt: Long = System.currentTimeMillis(),
 )
 
+/**
+ * A Tentacles question that has been cast and is awaiting the hider's reply.
+ *
+ * [nearbyPOIs] is the filtered list of POIs of type [featureLabel] that are within 1 mile of
+ * [seekerLocation] at the time the question was asked. The hider's answer (which nearby POI they
+ * are closest to) is recorded at resolve time.
+ */
+data class TentaclesConfirmed(
+    val dataset: String,
+    val featureLabel: String,
+    val seekerLocation: Point,
+    val nearbyPOIs: List<com.hiddenwindy.data.NamedPoint>,
+    val timerStarted: Boolean = false,
+    val remainingSeconds: Int = 5 * 60,
+    val confirmedAt: Long = System.currentTimeMillis(),
+)
+
 /** Stable keys for each top-level question, matching the Questions menu items. */
 object QuestionCategory {
     const val MATCHING = "MATCHING"
@@ -95,6 +112,7 @@ object QuestionCategory {
     const val RADAR = "RADAR"
     const val THERMOMETER = "THERMOMETER"
     const val PHOTOS = "PHOTOS"
+    const val TENTACLES = "TENTACLES"
 }
 
 /** A question asked this game, shown in the History list (e.g. "Radar, 5 mi"). */
@@ -137,6 +155,7 @@ data class GameState(
     val matchingConfirmed: MatchingConfirmed? = null,
     val measuringPOIConfirmed: MeasuringPOIConfirmed? = null,
     val photosConfirmed: PhotosConfirmed? = null,
+    val tentaclesConfirmed: TentaclesConfirmed? = null,
     val askedQuestions: List<AskedQuestion> = emptyList(),
     val activePOILayer: POILayerState? = null,
     /**

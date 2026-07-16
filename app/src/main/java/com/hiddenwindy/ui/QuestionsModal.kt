@@ -40,6 +40,7 @@ private enum class QuestionsScreen(val displayName: String) {
     THERMOMETER("Thermometer"),
     RADAR("Radar"),
     PHOTOS("Photos"),
+    TENTACLES("Tentacles"),
 }
 
 private val TOP_LEVEL_SCREENS = listOf(
@@ -48,6 +49,7 @@ private val TOP_LEVEL_SCREENS = listOf(
     QuestionsScreen.THERMOMETER,
     QuestionsScreen.RADAR,
     QuestionsScreen.PHOTOS,
+    QuestionsScreen.TENTACLES,
 )
 
 /** Sub-categories shown after tapping Matching. */
@@ -146,6 +148,16 @@ private enum class MeasureQuestion(
     M_FOREIGN_CONSULATE(MeasureCategory.UTILITIES, "Foreign Consulate", dataset = "utilities-consulates"),
 }
 
+/** A single Tentacles question, backed by one of the four supported POI datasets. */
+private data class TentaclesQuestion(val displayName: String, val dataset: String)
+
+private val TENTACLES_QUESTIONS = listOf(
+    TentaclesQuestion("Museum", "poi-museum"),
+    TentaclesQuestion("Library", "utilities-library"),
+    TentaclesQuestion("Movie Theater", "poi-movietheater"),
+    TentaclesQuestion("Hospital", "utilities-hospital"),
+)
+
 @Composable
 fun QuestionsModal(
     onDismiss: () -> Unit,
@@ -166,6 +178,10 @@ fun QuestionsModal(
     askedMeasuringDetails: Set<String> = emptySet(),
     askedPhotoSubjects: Set<String> = emptySet(),
     onPhotoSelected: (subject: String, questionText: String) -> Unit = { _, _ -> },
+    tentaclesEnabled: Boolean = false,
+    tentaclePOICount: (dataset: String) -> Int = { 0 },
+    onTentaclesConfirm: (dataset: String, featureLabel: String) -> Unit = { _, _ -> },
+    askedTentaclesDetails: Set<String> = emptySet(),
 ) {
     var screen by remember { mutableStateOf(if (startOnRadar) QuestionsScreen.RADAR else QuestionsScreen.HOME) }
     var matchCategory by remember { mutableStateOf<MatchCategory?>(null) }
@@ -174,6 +190,7 @@ fun QuestionsModal(
     var measureCategory by remember { mutableStateOf<MeasureCategory?>(null) }
     var measureQuestion by remember { mutableStateOf<MeasureQuestion?>(null) }
     var photoSubject by remember { mutableStateOf<String?>(null) }
+    var tentaclesQuestion by remember { mutableStateOf<TentaclesQuestion?>(null) }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -200,6 +217,7 @@ fun QuestionsModal(
                                 screen == QuestionsScreen.MEASURING && measureQuestion != null -> measureQuestion = null
                                 screen == QuestionsScreen.MEASURING && measureCategory != null -> measureCategory = null
                                 screen == QuestionsScreen.PHOTOS && photoSubject != null -> photoSubject = null
+                                screen == QuestionsScreen.TENTACLES && tentaclesQuestion != null -> tentaclesQuestion = null
                                 else -> {
                                     matchCategory = null
                                     matchQuestion = null
@@ -207,6 +225,7 @@ fun QuestionsModal(
                                     measureCategory = null
                                     measureQuestion = null
                                     photoSubject = null
+                                    tentaclesQuestion = null
                                     screen = QuestionsScreen.HOME
                                 }
                             }
@@ -225,6 +244,8 @@ fun QuestionsModal(
                                 measureQuestion?.displayName ?: measureCategory?.displayName ?: screen.displayName
                             screen == QuestionsScreen.PHOTOS ->
                                 photoSubject ?: screen.displayName
+                            screen == QuestionsScreen.TENTACLES ->
+                                tentaclesQuestion?.displayName ?: screen.displayName
                             else -> screen.displayName
                         },
                         style = MaterialTheme.typography.titleLarge,
@@ -245,6 +266,8 @@ fun QuestionsModal(
                           askedMatchingDetails = askedMatchingDetails,
                           askedMeasuringDetails = askedMeasuringDetails,
                           askedPhotoSubjects = askedPhotoSubjects,
+                          tentaclesEnabled = tentaclesEnabled,
+                          askedTentaclesDetails = askedTentaclesDetails,
                           onSelect = { screen = it },
                       )
                 } else if (screen == QuestionsScreen.MATCHING) {
@@ -280,6 +303,17 @@ fun QuestionsModal(
                         onSelectSubject = { photoSubject = it },
                         onPhotoConfirm = { subject, questionText -> onPhotoSelected(subject, questionText) },
                     )
+                } else if (screen == QuestionsScreen.TENTACLES) {
+                    TentaclesNav(
+                        selectedQuestion = tentaclesQuestion,
+                        tentaclesEnabled = tentaclesEnabled,
+                        tentaclePOICount = tentaclePOICount,
+                        askedTentaclesDetails = askedTentaclesDetails,
+                        onSelectQuestion = { tentaclesQuestion = it },
+                        onTentaclesConfirm = { dataset, featureLabel ->
+                            onTentaclesConfirm(dataset, featureLabel)
+                        },
+                    )
                 } else {
                     QuestionsSubmenu(
                         screen = screen,
@@ -302,6 +336,8 @@ private fun QuestionsGrid(
     askedMatchingDetails: Set<String>,
     askedMeasuringDetails: Set<String>,
     askedPhotoSubjects: Set<String>,
+    tentaclesEnabled: Boolean,
+    askedTentaclesDetails: Set<String>,
     onSelect: (QuestionsScreen) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -323,6 +359,8 @@ private fun QuestionsGrid(
                             MeasureQuestion.entries.any { q -> q.dataset != null && q.displayName !in askedMeasuringDetails }
                         QuestionsScreen.PHOTOS ->
                             PHOTO_SUBJECTS.any { it !in askedPhotoSubjects }
+                        QuestionsScreen.TENTACLES ->
+                            tentaclesEnabled && TENTACLES_QUESTIONS.any { it.displayName !in askedTentaclesDetails }
                         else -> option.name !in askedCategories
                     }
                     Button(
@@ -881,6 +919,102 @@ private fun RadarSubmenu(
                     }
                 }
             }
+        }
+    }
+}
+
+/** Tentacles navigation: POI type list -> confirm submenu. */
+@Composable
+private fun TentaclesNav(
+    selectedQuestion: TentaclesQuestion?,
+    tentaclesEnabled: Boolean,
+    tentaclePOICount: (dataset: String) -> Int,
+    askedTentaclesDetails: Set<String>,
+    onSelectQuestion: (TentaclesQuestion) -> Unit,
+    onTentaclesConfirm: (dataset: String, featureLabel: String) -> Unit,
+) {
+    when {
+        selectedQuestion != null -> FeatureTentaclesSubmenu(
+            question = selectedQuestion,
+            count = tentaclePOICount(selectedQuestion.dataset),
+            enabled = tentaclesEnabled,
+            onConfirm = { onTentaclesConfirm(selectedQuestion.dataset, selectedQuestion.displayName) },
+        )
+        else -> {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Surface(
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                        Text(text = "COST: Draw 3, Pick 1", style = MaterialTheme.typography.labelLarge)
+                        Text(text = "TIME: 5 Minutes", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+
+                HorizontalDivider()
+
+                Text(
+                    text = "Of the ___ within 1 mile of me, which one are you closest to? (You must also be within 1 mile of me.)",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+
+                val disabledQuestions = TENTACLES_QUESTIONS.mapIndexedNotNull { index, q ->
+                    val count = tentaclePOICount(q.dataset)
+                    if (!tentaclesEnabled || count == 0 || q.displayName in askedTentaclesDetails) index else null
+                }.toSet()
+                ButtonColumn(
+                    labels = TENTACLES_QUESTIONS.map { q ->
+                        val count = tentaclePOICount(q.dataset)
+                        if (tentaclesEnabled) "${q.displayName} ($count nearby)" else q.displayName
+                    },
+                    disabledIndices = disabledQuestions,
+                    onSelect = { index -> onSelectQuestion(TENTACLES_QUESTIONS[index]) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FeatureTentaclesSubmenu(
+    question: TentaclesQuestion,
+    count: Int,
+    enabled: Boolean,
+    onConfirm: () -> Unit,
+) {
+    var asked by remember { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            val text = when {
+                !enabled -> "Locating\u2026"
+                count == 0 -> "No ${question.displayName}s within 1 mile."
+                else -> {
+                    val plural = when (question.displayName) { "Library" -> "Libraries"; else -> "${question.displayName}s" }
+                    "Of the $count $plural within 1 mile of me, which one are you closest to? " +
+                    "(You must also be within 1 mile of me.)"
+                }
+            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            )
+        }
+        Button(
+            onClick = {
+                asked = true
+                onConfirm()
+            },
+            enabled = enabled && count > 0 && !asked,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Ask")
         }
     }
 }

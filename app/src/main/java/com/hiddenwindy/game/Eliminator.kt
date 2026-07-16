@@ -1,5 +1,6 @@
 package com.hiddenwindy.game
 
+import com.hiddenwindy.data.NamedPoint
 import com.hiddenwindy.data.Station
 import com.hiddenwindy.map.PolygonUnion
 import com.hiddenwindy.map.WaterDistanceGrid
@@ -230,5 +231,33 @@ data class MeasuringCoastlineEliminator(
         } else {
             band
         }
+    }
+}
+
+/**
+ * Eliminates based on a Tentacles question: "Of the [featureLabel]s within 1 mile of me, which
+ * one are you closest to? (You must also be within 1 mile.)"
+ *
+ * At resolve time we know the hider's [chosenPOIName] (which nearby POI they are closest to) and
+ * that they are within 1 mile of [seekerLocation]. The valid hider region is the intersection of:
+ *   - the 1-mile circle around [seekerLocation], AND
+ *   - the Voronoi cell of [chosenPOIName] computed only over [nearbyPOIs] (not the global dataset).
+ *
+ * Everything outside that intersection is shaded as eliminated.
+ */
+data class TentaclesEliminator(
+    override val id: String,
+    val featureLabel: String,
+    val seekerLocation: Point,
+    val nearbyPOIs: List<NamedPoint>,
+    val chosenPOIName: String,
+) : Eliminator {
+
+    override val label: String = "$featureLabel: $chosenPOIName"
+
+    override fun outRegions(context: GameContext): List<Polygon> {
+        val validRegion = PolygonUnion.tentaclesValidRegion(seekerLocation, nearbyPOIs, chosenPOIName)
+        if (validRegion.isEmpty()) return emptyList()
+        return listOfNotNull(ZoneGeometry.invertedMask(validRegion, context.bounds))
     }
 }
