@@ -208,6 +208,9 @@ fun MapScreen(
                     .filter { it.category == com.hiddenwindy.game.QuestionCategory.TENTACLES && !it.disabled }
                     .map { it.detail }
                     .toSet(),
+                hiderModeEnabled = state.hiderModeEnabled,
+                onToggleHiderMode = viewModel::toggleHiderMode,
+                locationAvailable = state.effectiveLocation != null,
                 onDismiss = {
                     showQuestionsModal = false
                     questionsStartOnRadar = false
@@ -723,7 +726,7 @@ private fun ThermometerTravelPanel(
                 fontWeight = FontWeight.Medium,
             )
             Text(
-                text = "%.1f miles / %s elapsed".format(traveledMiles, label),
+                text = "${formatDistanceMiles(traveledMiles)} / $label elapsed",
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -761,7 +764,7 @@ private fun ThermometerTravelWithCopyPanel(
 
     val lat = active.start.latitude()
     val lon = active.start.longitude()
-    val startCopyText = "Starting a thermometer at: ${"%.5f".format(lat)}/${"%.5f".format(lon)}"
+    val startCopyText = "Starting a thermometer at: ${"%.5f".format(lat)},${"%.5f".format(lon)}"
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (startCopyVisible) {

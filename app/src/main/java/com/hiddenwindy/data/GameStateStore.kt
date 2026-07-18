@@ -50,6 +50,7 @@ data class RestoredGame(
     val spoofLocationActive: Boolean,
     val adjustedLocation: Point?,
     val nextEliminatorId: Int,
+    val hiderModeEnabled: Boolean,
 )
 
 /**
@@ -114,6 +115,7 @@ class GameStateStore(context: Context) {
         state.debugLocation?.let { put("debugLocation", encodePoint(it)) }
         put("spoofLocationActive", state.spoofLocationActive)
         state.adjustedLocation?.let { put("adjustedLocation", encodePoint(it)) }
+        put("hiderModeEnabled", state.hiderModeEnabled)
     }
 
     private fun encodeEliminator(e: Eliminator): JSONObject? = when (e) {
@@ -326,6 +328,7 @@ class GameStateStore(context: Context) {
             spoofLocationActive = root.optBoolean("spoofLocationActive", false),
             adjustedLocation = root.optJSONArray("adjustedLocation")?.let { decodePoint(it) },
             nextEliminatorId = nextId,
+            hiderModeEnabled = root.optBoolean("hiderModeEnabled", false),
         )
     }
 

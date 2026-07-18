@@ -7,7 +7,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -18,14 +21,17 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -158,6 +164,58 @@ private val TENTACLES_QUESTIONS = listOf(
     TentaclesQuestion("Hospital", "utilities-hospital"),
 )
 
+/** Grouping used by the Hider Info list (see [HIDER_FEATURES]). */
+private enum class HiderCategory(val displayName: String) {
+    TRANSIT("Transit"),
+    NATURAL("Natural"),
+    BORDERS("Borders"),
+    POI("POI"),
+    UTILITIES("Utilities"),
+}
+
+/**
+ * A single row in the Hider Info list: the union of every Matching/Measuring dataset, deduplicated,
+ * so the hider can look up "my nearest X, Y miles away" to compare against the seeker's question.
+ * A null [dataset] means no data has been built for this feature yet ("Not available yet").
+ */
+private data class HiderFeature(
+    val category: HiderCategory,
+    val displayName: String,
+    val dataset: String? = null,
+)
+
+private val HIDER_FEATURES = listOf(
+    // Transit
+    HiderFeature(HiderCategory.TRANSIT, "Airport", dataset = "transit_airport"),
+    HiderFeature(HiderCategory.TRANSIT, "Transit Line", dataset = "line_regions"),
+    HiderFeature(HiderCategory.TRANSIT, "Rail Station", dataset = "rail_station"),
+    HiderFeature(HiderCategory.TRANSIT, "Street or Path"),
+
+    // Natural
+    HiderFeature(HiderCategory.NATURAL, "Park", dataset = "natural_park"),
+    HiderFeature(HiderCategory.NATURAL, "Body of Water", dataset = "natural_water"),
+    HiderFeature(HiderCategory.NATURAL, "Coastline", dataset = "coastline"),
+
+    // Borders
+    HiderFeature(HiderCategory.BORDERS, "Municipality", dataset = "municipality"),
+    HiderFeature(HiderCategory.BORDERS, "County Border", dataset = "county"),
+    HiderFeature(HiderCategory.BORDERS, "State Border", dataset = "borders_state"),
+    HiderFeature(HiderCategory.BORDERS, "International Border", dataset = "borders_international"),
+
+    // POI
+    HiderFeature(HiderCategory.POI, "Amusement Park", dataset = "poi-amusementparks"),
+    HiderFeature(HiderCategory.POI, "Zoo", dataset = "poi-zoo"),
+    HiderFeature(HiderCategory.POI, "Aquarium", dataset = "poi-aquarium"),
+    HiderFeature(HiderCategory.POI, "Golf Course", dataset = "poi-golfcourse"),
+    HiderFeature(HiderCategory.POI, "Museum", dataset = "poi-museum"),
+    HiderFeature(HiderCategory.POI, "Movie Theater", dataset = "poi-movietheater"),
+
+    // Utilities
+    HiderFeature(HiderCategory.UTILITIES, "Hospital", dataset = "utilities-hospital"),
+    HiderFeature(HiderCategory.UTILITIES, "Library", dataset = "utilities-library"),
+    HiderFeature(HiderCategory.UTILITIES, "Foreign Consulate", dataset = "utilities-consulates"),
+)
+
 @Composable
 fun QuestionsModal(
     onDismiss: () -> Unit,
@@ -182,6 +240,9 @@ fun QuestionsModal(
     tentaclePOICount: (dataset: String) -> Int = { 0 },
     onTentaclesConfirm: (dataset: String, featureLabel: String) -> Unit = { _, _ -> },
     askedTentaclesDetails: Set<String> = emptySet(),
+    hiderModeEnabled: Boolean = false,
+    onToggleHiderMode: () -> Unit = {},
+    locationAvailable: Boolean = false,
 ) {
     var screen by remember { mutableStateOf(if (startOnRadar) QuestionsScreen.RADAR else QuestionsScreen.HOME) }
     var matchCategory by remember { mutableStateOf<MatchCategory?>(null) }
@@ -191,6 +252,11 @@ fun QuestionsModal(
     var measureQuestion by remember { mutableStateOf<MeasureQuestion?>(null) }
     var photoSubject by remember { mutableStateOf<String?>(null) }
     var tentaclesQuestion by remember { mutableStateOf<TentaclesQuestion?>(null) }
+    var hiderFeature by remember { mutableStateOf<HiderFeature?>(null) }
+
+    LaunchedEffect(hiderModeEnabled) {
+        if (!hiderModeEnabled) hiderFeature = null
+    }
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -208,9 +274,10 @@ fun QuestionsModal(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (screen != QuestionsScreen.HOME) {
+                    if (screen != QuestionsScreen.HOME || (hiderModeEnabled && hiderFeature != null)) {
                         IconButton(onClick = {
                             when {
+                                screen == QuestionsScreen.HOME && hiderFeature != null -> hiderFeature = null
                                 screen == QuestionsScreen.MATCHING && transitLineChoice != null -> transitLineChoice = null
                                 screen == QuestionsScreen.MATCHING && matchQuestion != null -> { matchQuestion = null; transitLineChoice = null }
                                 screen == QuestionsScreen.MATCHING && matchCategory != null -> matchCategory = null
@@ -246,6 +313,8 @@ fun QuestionsModal(
                                 photoSubject ?: screen.displayName
                             screen == QuestionsScreen.TENTACLES ->
                                 tentaclesQuestion?.displayName ?: screen.displayName
+                            screen == QuestionsScreen.HOME && hiderModeEnabled ->
+                                hiderFeature?.displayName ?: "Hider Mode"
                             else -> screen.displayName
                         },
                         style = MaterialTheme.typography.titleLarge,
@@ -259,17 +328,46 @@ fun QuestionsModal(
                 Spacer(Modifier.height(16.dp))
 
                 if (screen == QuestionsScreen.HOME) {
-                      QuestionsGrid(
-                          askedCategories = askedCategories,
-                          askedRadarLabels = askedRadarLabels,
-                          askedThermometerLabels = askedThermometerLabels,
-                          askedMatchingDetails = askedMatchingDetails,
-                          askedMeasuringDetails = askedMeasuringDetails,
-                          askedPhotoSubjects = askedPhotoSubjects,
-                          tentaclesEnabled = tentaclesEnabled,
-                          askedTentaclesDetails = askedTentaclesDetails,
-                          onSelect = { screen = it },
-                      )
+                    if (hiderModeEnabled) {
+                        HiderInfoPanel(
+                            locationAvailable = locationAvailable,
+                            selectedFeature = hiderFeature,
+                            onSelectFeature = { hiderFeature = it },
+                            nearestFeatureName = nearestFeatureName,
+                            nearestLineNames = nearestLineNames,
+                            nearestPointDistanceMiles = nearestPointDistanceMiles,
+                        )
+                    } else {
+                        QuestionsGrid(
+                            askedCategories = askedCategories,
+                            askedRadarLabels = askedRadarLabels,
+                            askedThermometerLabels = askedThermometerLabels,
+                            askedMatchingDetails = askedMatchingDetails,
+                            askedMeasuringDetails = askedMeasuringDetails,
+                            askedPhotoSubjects = askedPhotoSubjects,
+                            tentaclesEnabled = tentaclesEnabled,
+                            askedTentaclesDetails = askedTentaclesDetails,
+                            onSelect = { screen = it },
+                        )
+                    }
+                    if (hiderFeature == null) {
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "Hider Mode",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Switch(
+                                checked = hiderModeEnabled,
+                                onCheckedChange = { onToggleHiderMode() },
+                            )
+                        }
+                    }
                 } else if (screen == QuestionsScreen.MATCHING) {
                     MatchingNav(
                         category = matchCategory,
@@ -672,6 +770,121 @@ private fun ButtonColumn(
     }
 }
 
+/**
+ * Read-only "Your nearest X is Y, Z miles away" lookup for the hider, covering every
+ * Matching/Measuring dataset (deduplicated). Answers are computed on demand — tapping a feature
+ * button shows just that single result — since the hider only ever needs one answer at a time.
+ * Unlike the Seeker questions, nothing here creates an eliminator or asked-question record; it's
+ * purely informational so the hider can answer the seeker's texted question.
+ */
+@Composable
+private fun HiderInfoPanel(
+    locationAvailable: Boolean,
+    selectedFeature: HiderFeature?,
+    onSelectFeature: (HiderFeature?) -> Unit,
+    nearestFeatureName: (dataset: String) -> String?,
+    nearestLineNames: () -> List<String>,
+    nearestPointDistanceMiles: (dataset: String) -> Double?,
+) {
+    if (!locationAvailable) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(180.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "Waiting for location\u2026",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        return
+    }
+
+    if (selectedFeature != null) {
+        HiderFeatureDetail(
+            feature = selectedFeature,
+            nearestFeatureName = nearestFeatureName,
+            nearestLineNames = nearestLineNames,
+            nearestPointDistanceMiles = nearestPointDistanceMiles,
+        )
+        return
+    }
+
+    LazyColumn(
+        modifier = Modifier.heightIn(max = 420.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        HiderCategory.entries.forEach { category ->
+            val features = HIDER_FEATURES.filter { it.category == category }
+            if (features.isEmpty()) return@forEach
+            item {
+                Text(
+                    text = category.displayName,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                )
+            }
+            items(features) { feature ->
+                Button(
+                    onClick = { onSelectFeature(feature) },
+                    enabled = feature.dataset != null,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(feature.displayName)
+                }
+            }
+        }
+    }
+}
+
+/** Computes and shows the single nearest-feature answer for [feature]. */
+@Composable
+private fun HiderFeatureDetail(
+    feature: HiderFeature,
+    nearestFeatureName: (dataset: String) -> String?,
+    nearestLineNames: () -> List<String>,
+    nearestPointDistanceMiles: (dataset: String) -> Double?,
+) {
+    val dataset = feature.dataset ?: return
+    val distanceMiles = nearestPointDistanceMiles(dataset)
+    val text = if (dataset == "line_regions") {
+        val names = nearestLineNames()
+        if (names.isEmpty() || distanceMiles == null) {
+            "Not available right now."
+        } else {
+            "Your nearest ${feature.displayName} is ${joinNames(names)}, ${formatDistanceMiles(distanceMiles)} away."
+        }
+    } else {
+        val name = nearestFeatureName(dataset)
+        if (name == null || distanceMiles == null) {
+            "Not available right now."
+        } else {
+            "Your nearest ${feature.displayName} is $name, ${formatDistanceMiles(distanceMiles)} away."
+        }
+    }
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        )
+    }
+}
+
+/** Joins feature names into grammatical English: "A", "A and B", or "A, B, and C". */
+private fun joinNames(names: List<String>): String = when (names.size) {
+    0 -> ""
+    1 -> names[0]
+    2 -> "${names[0]} and ${names[1]}"
+    else -> names.dropLast(1).joinToString(", ") + ", and ${names.last()}"
+}
+
 @Composable
 private fun FeatureMeasuringSubmenu(
     featureLabel: String,
@@ -689,7 +902,7 @@ private fun FeatureMeasuringSubmenu(
             val text = when {
                 !enabled -> "Locating\u2026"
                 nearestName == null || distanceMiles == null -> "No $featureLabel found nearby."
-                else -> "My nearest $featureLabel is $nearestName, ${"%.1f".format(distanceMiles)} miles away."
+                else -> "My nearest $featureLabel is $nearestName, ${formatDistanceMiles(distanceMiles)} away."
             }
             Text(
                 text = text,

@@ -65,6 +65,21 @@ class LineRegionsRepository(private val context: Context) {
         return best
     }
 
+    /** Returns the straight-line distance in miles to the nearest line, or null when [linesByName] is empty. */
+    fun nearestLineDistanceMiles(point: Point, linesByName: Map<String, List<LineString>>): Double? {
+        var bestMiles: Double? = null
+        for ((_, lines) in linesByName) {
+            for (line in lines) {
+                val coords = line.coordinates()
+                if (coords.size < 2) continue
+                val snapped = TurfMisc.nearestPointOnLine(point, coords, TurfConstants.UNIT_MILES)
+                val dist = snapped.getNumberProperty("dist")?.toDouble() ?: continue
+                if (bestMiles == null || dist < bestMiles) bestMiles = dist
+            }
+        }
+        return bestMiles
+    }
+
     /**
      * Returns all line names within [thresholdKm] of the nearest line to [point], sorted
      * alphabetically. Returns a single element in the common case; multiple elements when lines

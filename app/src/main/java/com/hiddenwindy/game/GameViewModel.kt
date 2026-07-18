@@ -223,6 +223,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                         debugLocation = restored.debugLocation,
                         spoofLocationActive = restored.spoofLocationActive,
                         adjustedLocation = restored.adjustedLocation,
+                        hiderModeEnabled = restored.hiderModeEnabled,
                     )
                 }
             }
@@ -598,6 +599,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _state.update { it.copy(debugLocation = point) }
     }
 
+    /** Toggles Hider Mode: shows the hider's own nearest-feature info in the Questions modal. */
+    fun toggleHiderMode() {
+        _state.update { it.copy(hiderModeEnabled = !it.hiderModeEnabled) }
+    }
+
     /** Arms a Radar preview with the given radius. */
     fun setRadarPending(label: String, radiusMiles: Double) {
         _state.update {
@@ -889,6 +895,13 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val loc = _state.value.effectiveLocation ?: return null
         if (dataset == "natural_water") {
             return pointRegionsRepository.nearestPolygonBody(loc, waterRegions)?.second
+        }
+        if (dataset == "municipality") {
+            return pointRegionsRepository.nearestPolygonBody(loc, municipalityRegions)?.second
+        }
+        if (dataset == "line_regions") {
+            if (linesByName.isEmpty()) return null
+            return lineRegionsRepository.nearestLineDistanceMiles(loc, linesByName)
         }
         if (dataset == "coastline") {
             val line = coastlineLine ?: return null
@@ -1292,6 +1305,7 @@ private data class SaveKey(
     val debugLocation: Point?,
     val spoofLocationActive: Boolean,
     val adjustedLocation: Point?,
+    val hiderModeEnabled: Boolean,
 )
 
 private fun GameState.saveKey() = SaveKey(
@@ -1305,4 +1319,5 @@ private fun GameState.saveKey() = SaveKey(
     debugLocation = debugLocation,
     spoofLocationActive = spoofLocationActive,
     adjustedLocation = adjustedLocation,
+    hiderModeEnabled = hiderModeEnabled,
 )

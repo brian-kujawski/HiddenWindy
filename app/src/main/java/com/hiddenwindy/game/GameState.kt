@@ -168,6 +168,8 @@ data class GameState(
     val adjustingLocation: Boolean = false,
     /** Manually placed question origin from the Adjust target, or null to use GPS. */
     val adjustedLocation: Point? = null,
+    /** True while the Questions modal shows the Hider's own nearest-feature info instead of Seeker questions. */
+    val hiderModeEnabled: Boolean = false,
 ) {
     /** Centers of every clear (in-play) circle: the locked zone plus the active station's zone. */
     val clearZoneCenters: List<Point>

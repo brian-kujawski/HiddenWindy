@@ -48,7 +48,7 @@ fun MeasuringPOIConfirmPanel(
 
     val copyText =
         "Compared to me, are you closer to or farther from a ${confirmed.featureLabel}? " +
-        "(I am ${"%.1f".format(confirmed.distanceMiles)} miles from ${confirmed.nearestName}.)"
+        "(I am ${formatDistanceMiles(confirmed.distanceMiles)} from ${confirmed.nearestName}.)"
 
     if (showResolveDialog) {
         AlertDialog(
