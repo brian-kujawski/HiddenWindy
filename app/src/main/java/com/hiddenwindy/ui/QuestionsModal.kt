@@ -20,6 +20,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -243,6 +244,7 @@ fun QuestionsModal(
     hiderModeEnabled: Boolean = false,
     onToggleHiderMode: () -> Unit = {},
     locationAvailable: Boolean = false,
+    distanceToPointMiles: (latitude: Double, longitude: Double) -> Double? = { _, _ -> null },
 ) {
     var screen by remember { mutableStateOf(if (startOnRadar) QuestionsScreen.RADAR else QuestionsScreen.HOME) }
     var matchCategory by remember { mutableStateOf<MatchCategory?>(null) }
@@ -253,9 +255,13 @@ fun QuestionsModal(
     var photoSubject by remember { mutableStateOf<String?>(null) }
     var tentaclesQuestion by remember { mutableStateOf<TentaclesQuestion?>(null) }
     var hiderFeature by remember { mutableStateOf<HiderFeature?>(null) }
+    var showDistToLatLong by remember { mutableStateOf(false) }
 
     LaunchedEffect(hiderModeEnabled) {
-        if (!hiderModeEnabled) hiderFeature = null
+        if (!hiderModeEnabled) {
+            hiderFeature = null
+            showDistToLatLong = false
+        }
     }
 
     Dialog(
@@ -274,10 +280,13 @@ fun QuestionsModal(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (screen != QuestionsScreen.HOME || (hiderModeEnabled && hiderFeature != null)) {
+                    if (screen != QuestionsScreen.HOME || (hiderModeEnabled && (hiderFeature != null || showDistToLatLong))) {
                         IconButton(onClick = {
                             when {
-                                screen == QuestionsScreen.HOME && hiderFeature != null -> hiderFeature = null
+                                screen == QuestionsScreen.HOME && (hiderFeature != null || showDistToLatLong) -> {
+                                    hiderFeature = null
+                                    showDistToLatLong = false
+                                }
                                 screen == QuestionsScreen.MATCHING && transitLineChoice != null -> transitLineChoice = null
                                 screen == QuestionsScreen.MATCHING && matchQuestion != null -> { matchQuestion = null; transitLineChoice = null }
                                 screen == QuestionsScreen.MATCHING && matchCategory != null -> matchCategory = null
@@ -314,7 +323,11 @@ fun QuestionsModal(
                             screen == QuestionsScreen.TENTACLES ->
                                 tentaclesQuestion?.displayName ?: screen.displayName
                             screen == QuestionsScreen.HOME && hiderModeEnabled ->
-                                hiderFeature?.displayName ?: "Hider Mode"
+                                when {
+                                    showDistToLatLong -> "Dist to Lat/Long"
+                                    hiderFeature != null -> hiderFeature?.displayName ?: "Hider Mode"
+                                    else -> "Hider Mode"
+                                }
                             else -> screen.displayName
                         },
                         style = MaterialTheme.typography.titleLarge,
@@ -332,10 +345,13 @@ fun QuestionsModal(
                         HiderInfoPanel(
                             locationAvailable = locationAvailable,
                             selectedFeature = hiderFeature,
-                            onSelectFeature = { hiderFeature = it },
+                            onSelectFeature = { hiderFeature = it; showDistToLatLong = false },
+                            showDistToLatLong = showDistToLatLong,
+                            onSelectDistanceToPoint = { showDistToLatLong = true; hiderFeature = null },
                             nearestFeatureName = nearestFeatureName,
                             nearestLineNames = nearestLineNames,
                             nearestPointDistanceMiles = nearestPointDistanceMiles,
+                            distanceToPointMiles = distanceToPointMiles,
                         )
                     } else {
                         QuestionsGrid(
@@ -350,7 +366,7 @@ fun QuestionsModal(
                             onSelect = { screen = it },
                         )
                     }
-                    if (hiderFeature == null) {
+                    if (hiderFeature == null && !showDistToLatLong) {
                         HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -782,9 +798,12 @@ private fun HiderInfoPanel(
     locationAvailable: Boolean,
     selectedFeature: HiderFeature?,
     onSelectFeature: (HiderFeature?) -> Unit,
+    showDistToLatLong: Boolean,
+    onSelectDistanceToPoint: () -> Unit,
     nearestFeatureName: (dataset: String) -> String?,
     nearestLineNames: () -> List<String>,
     nearestPointDistanceMiles: (dataset: String) -> Double?,
+    distanceToPointMiles: (latitude: Double, longitude: Double) -> Double?,
 ) {
     if (!locationAvailable) {
         Box(
@@ -798,6 +817,11 @@ private fun HiderInfoPanel(
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
+        return
+    }
+
+    if (showDistToLatLong) {
+        DistToLatLongPanel(distanceToPointMiles = distanceToPointMiles)
         return
     }
 
@@ -815,6 +839,14 @@ private fun HiderInfoPanel(
         modifier = Modifier.heightIn(max = 420.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
+        item {
+            Button(
+                onClick = onSelectDistanceToPoint,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Dist to Lat/Long")
+            }
+        }
         HiderCategory.entries.forEach { category ->
             val features = HIDER_FEATURES.filter { it.category == category }
             if (features.isEmpty()) return@forEach
@@ -883,6 +915,66 @@ private fun joinNames(names: List<String>): String = when (names.size) {
     1 -> names[0]
     2 -> "${names[0]} and ${names[1]}"
     else -> names.dropLast(1).joinToString(", ") + ", and ${names.last()}"
+}
+
+/**
+ * Lets the hider paste the seeker's entire texted question (or just the coordinates) and get the
+ * distance from their current location to that point. Supports decimal-degree and DMS coordinate
+ * formats via [com.hiddenwindy.util.parseCoordinateFromText].
+ */
+@Composable
+private fun DistToLatLongPanel(
+    distanceToPointMiles: (latitude: Double, longitude: Double) -> Double?,
+) {
+    var input by remember { mutableStateOf("") }
+    var result by remember { mutableStateOf<String?>(null) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = "Paste the seeker's question text (or just the coordinates) below.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        OutlinedTextField(
+            value = input,
+            onValueChange = { input = it },
+            label = { Text("Seeker's text") },
+            minLines = 2,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Button(
+            onClick = {
+                val parsed = com.hiddenwindy.util.parseCoordinateFromText(input)
+                result = when {
+                    parsed == null -> "Couldn't find a latitude/longitude in that text."
+                    else -> {
+                        val distance = distanceToPointMiles(parsed.latitude, parsed.longitude)
+                        if (distance == null) {
+                            "Location unavailable right now."
+                        } else {
+                            "Parsed ${"%.5f".format(parsed.latitude)}, ${"%.5f".format(parsed.longitude)} " +
+                                "\u2014 ${formatDistanceMiles(distance)} away."
+                        }
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Calculate")
+        }
+        result?.let { message ->
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                )
+            }
+        }
+    }
 }
 
 @Composable

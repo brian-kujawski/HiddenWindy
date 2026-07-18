@@ -211,6 +211,7 @@ fun MapScreen(
                 hiderModeEnabled = state.hiderModeEnabled,
                 onToggleHiderMode = viewModel::toggleHiderMode,
                 locationAvailable = state.effectiveLocation != null,
+                distanceToPointMiles = { lat, lon -> viewModel.distanceToPointMiles(lat, lon) },
                 onDismiss = {
                     showQuestionsModal = false
                     questionsStartOnRadar = false
@@ -764,7 +765,7 @@ private fun ThermometerTravelWithCopyPanel(
 
     val lat = active.start.latitude()
     val lon = active.start.longitude()
-    val startCopyText = "Starting a thermometer at: ${"%.5f".format(lat)},${"%.5f".format(lon)}"
+    val startCopyText = "Starting a thermometer at: ${"%.5f".format(lat)}, ${"%.5f".format(lon)}"
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (startCopyVisible) {

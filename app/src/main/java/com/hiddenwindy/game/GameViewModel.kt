@@ -924,6 +924,17 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         return points.minOfOrNull { TurfMeasurement.distance(loc, it.location, TurfConstants.UNIT_MILES) }
     }
 
+    /**
+     * Returns the distance in miles from the current effective location to an arbitrary
+     * [latitude]/[longitude] point (used by the Hider's "Dist to Lat/Long" tool), or null if
+     * location is unknown.
+     */
+    fun distanceToPointMiles(latitude: Double, longitude: Double): Double? {
+        val loc = _state.value.effectiveLocation ?: return null
+        val target = Point.fromLngLat(longitude, latitude)
+        return TurfMeasurement.distance(loc, target, TurfConstants.UNIT_MILES)
+    }
+
     private fun datasetPoints(dataset: String): List<NamedPoint> = when (dataset) {
         "rail_station" -> _state.value.stations.map { NamedPoint(it.name, Point.fromLngLat(it.lon, it.lat)) }
         "transit_airport" -> airportPoints

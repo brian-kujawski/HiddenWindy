@@ -52,7 +52,7 @@ fun ThermometerConfirmPanel(
     val lon = finish.longitude()
     val copyText =
         "I've gone ${formatDistanceMiles(miles)} - am I hotter or colder at my new location, " +
-        "${"%.5f".format(lat)},${"%.5f".format(lon)}?"
+        "${"%.5f".format(lat)}, ${"%.5f".format(lon)}?"
 
     if (showResolveDialog) {
         AlertDialog(
