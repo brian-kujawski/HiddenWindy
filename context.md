@@ -345,9 +345,9 @@ HOME grid (6 buttons)
 | `MapScreen.kt` | modified | Layers button, `LayersModal` wiring, `measuringPOIConfirmed` panel |
 
 ## Pending / Coming Soon Questions
-- Matching: Municipality, Street or Path (no datasets built)
-- Matching/Measuring Transit: Airport ✅ (Matching only; Measuring Airport = no dataset yet), Rail Station (no dataset)
-- Matching/Measuring Natural: Park ✅ (Matching only; Measuring Park = no dataset yet), Body of Water, Coastline
+- Matching: Municipality (no dataset built)
+- Matching/Measuring Transit: Airport ✅ (Matching + Measuring), Rail Station (no dataset)
+- Matching/Measuring Natural: Park ✅ (Matching + Measuring), Body of Water, Coastline
 - Matching/Measuring Borders: International, State, County (no datasets)
 - Tentacles, Photos: not started
 

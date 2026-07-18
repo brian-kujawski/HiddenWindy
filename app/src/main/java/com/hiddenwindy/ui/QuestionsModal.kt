@@ -86,7 +86,6 @@ private enum class MatchQuestion(
     AIRPORT(MatchCategory.TRANSIT, "Airport", dataset = "transit_airport"),
     TRANSIT_LINE(MatchCategory.TRANSIT, "Transit Line", dataset = "line_regions"),
     STATION_NAME_LENGTH(MatchCategory.TRANSIT, "Station's Name Length", dataset = "station_name_length"),
-    STREET_OR_PATH(MatchCategory.TRANSIT, "Street or Path"),
 
     // Divisions
     MUNICIPALITY(MatchCategory.DIVISIONS, "Municipality", dataset = "municipality"),
@@ -128,7 +127,7 @@ private enum class MeasureQuestion(
     val dataset: String? = null,
 ) {
     // Transit
-    M_AIRPORT(MeasureCategory.TRANSIT, "Airport"),
+    M_AIRPORT(MeasureCategory.TRANSIT, "Airport", dataset = "transit_airport"),
     RAIL_STATION(MeasureCategory.TRANSIT, "Rail Station", dataset = "rail_station"),
 
     // Borders
@@ -139,7 +138,7 @@ private enum class MeasureQuestion(
     // Natural
     BODY_OF_WATER(MeasureCategory.NATURAL, "Body of Water", dataset = "natural_water"),
     COASTLINE(MeasureCategory.NATURAL, "Coastline", dataset = "coastline"),
-    M_PARK(MeasureCategory.NATURAL, "Park"),
+    M_PARK(MeasureCategory.NATURAL, "Park", dataset = "natural_park"),
 
     // POI
     M_AMUSEMENT_PARK(MeasureCategory.POI, "Amusement Park", dataset = "poi-amusementparks"),
@@ -190,7 +189,6 @@ private val HIDER_FEATURES = listOf(
     HiderFeature(HiderCategory.TRANSIT, "Airport", dataset = "transit_airport"),
     HiderFeature(HiderCategory.TRANSIT, "Transit Line", dataset = "line_regions"),
     HiderFeature(HiderCategory.TRANSIT, "Rail Station", dataset = "rail_station"),
-    HiderFeature(HiderCategory.TRANSIT, "Street or Path"),
 
     // Natural
     HiderFeature(HiderCategory.NATURAL, "Park", dataset = "natural_park"),
