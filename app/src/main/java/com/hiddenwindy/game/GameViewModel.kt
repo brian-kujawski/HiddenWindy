@@ -1241,6 +1241,36 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         _state.update { it.copy(tentaclesConfirmed = null) }
     }
 
+    /**
+     * Resolves the Tentacles question when the hider reports they are NOT within 1 mile of the
+     * seeker. This degrades to a 1-mile Radar "no": everything within 1 mile of the seeker is out.
+     */
+    fun resolveTentaclesOutside() {
+        tentaclesTimerJob?.cancel()
+        tentaclesTimerJob = null
+        val confirmed = _state.value.tentaclesConfirmed ?: return
+        val eliminator = TentaclesEliminator(
+            id = "tentacles-${eliminatorCounter++}",
+            featureLabel = confirmed.featureLabel,
+            seekerLocation = confirmed.seekerLocation,
+            nearbyPOIs = confirmed.nearbyPOIs,
+            chosenPOIName = null,
+        )
+        val record = AskedQuestion(
+            category = QuestionCategory.TENTACLES,
+            label = "Tentacles",
+            detail = confirmed.featureLabel,
+            eliminatorId = eliminator.id,
+        )
+        _state.update {
+            it.copy(
+                tentaclesConfirmed = null,
+                eliminators = it.eliminators + eliminator,
+                askedQuestions = it.askedQuestions + record,
+            )
+        }
+    }
+
     /** Records a Photos question and shows the copy+timer panel on the map. */
     fun confirmPhotos(subject: String, questionText: String) {
         val record = AskedQuestion(

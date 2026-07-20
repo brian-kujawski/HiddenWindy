@@ -12,6 +12,7 @@ import com.hiddenwindy.game.MeasuringPOIEliminator
 import com.hiddenwindy.game.MeasuringWaterEliminator
 import com.hiddenwindy.game.PointMatchEliminator
 import com.hiddenwindy.game.RadarResult
+import com.hiddenwindy.game.TentaclesEliminator
 import com.hiddenwindy.game.ThermometerEliminator
 import org.json.JSONArray
 import org.json.JSONObject
@@ -168,6 +169,14 @@ class GameStateStore(context: Context) {
             put("distanceMiles", e.distanceMiles)
             put("closer", e.closer)
         }
+        is TentaclesEliminator -> JSONObject().apply {
+            put("type", "TENTACLES")
+            put("id", e.id)
+            put("featureLabel", e.featureLabel)
+            put("seekerLocation", encodePoint(e.seekerLocation))
+            put("nearbyPOIs", encodeNamedPoints(e.nearbyPOIs))
+            e.chosenPOIName?.let { put("chosenPOIName", it) }
+        }
         else -> null
     }
 
@@ -200,6 +209,16 @@ class GameStateStore(context: Context) {
 
     private fun encodePoints(points: List<Point>): JSONArray =
         JSONArray().apply { points.forEach { put(encodePoint(it)) } }
+
+    private fun encodeNamedPoints(points: List<NamedPoint>): JSONArray =
+        JSONArray().apply {
+            points.forEach {
+                put(JSONObject().apply {
+                    put("name", it.name)
+                    put("location", encodePoint(it.location))
+                })
+            }
+        }
 
     private fun encodePolygons(polygons: List<Polygon>): JSONArray =
         JSONArray().apply { polygons.forEach { put(encodePolygon(it)) } }
@@ -274,6 +293,15 @@ class GameStateStore(context: Context) {
                         featureLabel = o.getString("featureLabel"),
                         distanceMiles = o.getDouble("distanceMiles"),
                         closer = o.getBoolean("closer"),
+                    )
+                )
+                "TENTACLES" -> eliminators.add(
+                    TentaclesEliminator(
+                        id = o.getString("id"),
+                        featureLabel = o.getString("featureLabel"),
+                        seekerLocation = decodePoint(o.getJSONArray("seekerLocation")),
+                        nearbyPOIs = decodeNamedPoints(o.getJSONArray("nearbyPOIs")),
+                        chosenPOIName = if (o.has("chosenPOIName")) o.getString("chosenPOIName") else null,
                     )
                 )
             }
@@ -352,6 +380,14 @@ class GameStateStore(context: Context) {
     private fun decodePoints(a: JSONArray): List<Point> =
         ArrayList<Point>(a.length()).apply {
             for (i in 0 until a.length()) add(decodePoint(a.getJSONArray(i)))
+        }
+
+    private fun decodeNamedPoints(a: JSONArray): List<NamedPoint> =
+        ArrayList<NamedPoint>(a.length()).apply {
+            for (i in 0 until a.length()) {
+                val o = a.getJSONObject(i)
+                add(NamedPoint(o.getString("name"), decodePoint(o.getJSONArray("location"))))
+            }
         }
 
     private fun decodePolygons(a: JSONArray): List<Polygon> =

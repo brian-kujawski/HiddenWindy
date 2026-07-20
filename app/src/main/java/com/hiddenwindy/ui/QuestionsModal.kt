@@ -1251,7 +1251,7 @@ private fun TentaclesNav(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-                        Text(text = "COST: Draw 3, Pick 1", style = MaterialTheme.typography.labelLarge)
+                        Text(text = "COST: Draw 4, Pick 2", style = MaterialTheme.typography.labelLarge)
                         Text(text = "TIME: 5 Minutes", style = MaterialTheme.typography.labelLarge)
                     }
                 }

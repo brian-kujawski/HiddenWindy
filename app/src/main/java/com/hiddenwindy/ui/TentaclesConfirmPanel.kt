@@ -43,6 +43,7 @@ fun TentaclesConfirmPanel(
     confirmed: TentaclesConfirmed,
     onStartTimer: () -> Unit,
     onResolve: (chosenPOIName: String) -> Unit,
+    onResolveOutside: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -53,9 +54,12 @@ fun TentaclesConfirmPanel(
 
     val n = confirmed.nearbyPOIs.size
     val pluralLabel = pluralizeFeatureLabel(confirmed.featureLabel)
+    val lat = confirmed.seekerLocation.latitude()
+    val lon = confirmed.seekerLocation.longitude()
     val copyText =
         "Of the $n $pluralLabel within 1 mile of me, which one are you closest to? " +
-        "(You must also be within 1 mile of me.)"
+        "(You must also be within 1 mile of me.) " +
+        "I am at ${"%.5f".format(lat)}, ${"%.5f".format(lon)}."
 
     Column(
         modifier = modifier,
@@ -170,6 +174,15 @@ fun TentaclesConfirmPanel(
                             ) {
                                 Text(poi.name)
                             }
+                        }
+                        OutlinedButton(
+                            onClick = {
+                                showResolveList = false
+                                onResolveOutside()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("I am not within 1 mile")
                         }
                     }
                 }

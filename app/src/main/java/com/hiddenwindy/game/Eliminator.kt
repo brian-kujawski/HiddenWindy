@@ -244,18 +244,25 @@ data class MeasuringCoastlineEliminator(
  *   - the Voronoi cell of [chosenPOIName] computed only over [nearbyPOIs] (not the global dataset).
  *
  * Everything outside that intersection is shaded as eliminated.
+ *
+ * When [chosenPOIName] is null the hider reported they are NOT within 1 mile of the seeker, so the
+ * question degrades to a 1-mile Radar "no": the 1-mile circle around [seekerLocation] is out.
  */
 data class TentaclesEliminator(
     override val id: String,
     val featureLabel: String,
     val seekerLocation: Point,
     val nearbyPOIs: List<NamedPoint>,
-    val chosenPOIName: String,
+    val chosenPOIName: String?,
 ) : Eliminator {
 
-    override val label: String = "$featureLabel: $chosenPOIName"
+    override val label: String =
+        if (chosenPOIName != null) "$featureLabel: $chosenPOIName" else "$featureLabel: outside 1 mi"
 
     override fun outRegions(context: GameContext): List<Polygon> {
+        if (chosenPOIName == null) {
+            return listOf(ZoneGeometry.hidingZoneCircle(seekerLocation, 1.0))
+        }
         val validRegion = PolygonUnion.tentaclesValidRegion(seekerLocation, nearbyPOIs, chosenPOIName)
         if (validRegion.isEmpty()) return emptyList()
         return listOfNotNull(ZoneGeometry.invertedMask(validRegion, context.bounds))

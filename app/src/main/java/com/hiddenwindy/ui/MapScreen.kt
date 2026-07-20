@@ -314,6 +314,7 @@ fun MapScreen(
                 confirmed = confirmed,
                 onStartTimer = viewModel::startTentaclesTimer,
                 onResolve = { name -> viewModel.resolveTentacles(name) },
+                onResolveOutside = { viewModel.resolveTentaclesOutside() },
                 onDismiss = viewModel::dismissTentacles,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
