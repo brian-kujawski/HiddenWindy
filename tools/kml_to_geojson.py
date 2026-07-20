@@ -78,10 +78,9 @@ def find_folder(doc: ET.Element, name: str) -> ET.Element | None:
 
 def build_lines(doc: ET.Element, colors: dict[str, str]) -> list[dict]:
     features: list[dict] = []
-    for folder_name in ("Rail Lines", "Metra Lines"):
-        folder = find_folder(doc, folder_name)
-        if folder is None:
-            continue
+    # CTA-only output: ignore Metra folders in the combined source KML.
+    folder = find_folder(doc, "Rail Lines")
+    if folder is not None:
         _collect_line_features(folder, colors, features)
     return features
 
@@ -133,33 +132,34 @@ def parse_station_description(desc: str) -> dict:
 
 def build_stations(doc: ET.Element) -> list[dict]:
     features: list[dict] = []
-    for folder_name in ("Stations", "Metra Stations"):
-        folder = find_folder(doc, folder_name)
-        if folder is None:
+    # CTA-only output: ignore Metra folders in the combined source KML.
+    folder = find_folder(doc, "Stations")
+    if folder is None:
+        return features
+
+    for pm in folder.iter(tag("Placemark")):
+        point = pm.find(tag("Point"))
+        if point is None:
             continue
-        for pm in folder.iter(tag("Placemark")):
-            point = pm.find(tag("Point"))
-            if point is None:
-                continue
-            coords_el = point.find(tag("coordinates"))
-            if coords_el is None or not coords_el.text:
-                continue
-            coords = parse_coords(coords_el.text)
-            if not coords:
-                continue
-            name_el = pm.find(tag("name"))
-            name = (name_el.text or "").strip() if name_el is not None else ""
-            desc_el = pm.find(tag("description"))
-            meta = parse_station_description(desc_el.text if desc_el is not None else "")
-            props = {"name": name}
-            props.update(meta)
-            features.append(
-                {
-                    "type": "Feature",
-                    "properties": props,
-                    "geometry": {"type": "Point", "coordinates": coords[0]},
-                }
-            )
+        coords_el = point.find(tag("coordinates"))
+        if coords_el is None or not coords_el.text:
+            continue
+        coords = parse_coords(coords_el.text)
+        if not coords:
+            continue
+        name_el = pm.find(tag("name"))
+        name = (name_el.text or "").strip() if name_el is not None else ""
+        desc_el = pm.find(tag("description"))
+        meta = parse_station_description(desc_el.text if desc_el is not None else "")
+        props = {"name": name}
+        props.update(meta)
+        features.append(
+            {
+                "type": "Feature",
+                "properties": props,
+                "geometry": {"type": "Point", "coordinates": coords[0]},
+            }
+        )
     return features
 
 
